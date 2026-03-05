@@ -1,32 +1,36 @@
 <template>
   <div class="admin-reviews">
-    <h1>💬 Модерация отзывов</h1>
+    <!-- ЗАГОЛОВОК -->
+    <div class="header-row">
+      <div class="header-left">
+        <h1>💬 Модерация отзывов</h1>
+        <p class="subtitle">Проверка и управление мнениями пользователей о товарах</p>
+      </div>
+      <div class="stats-badge">
+        Найдено: <b>{{ filteredReviews.length }}</b>
+      </div>
+    </div>
 
-    <!-- 1. БЛОК УМНОЙ ФИЛЬТРАЦИИ -->
-    <section style="background: #f8fafc; padding: 25px; border-radius: 16px; margin-bottom: 25px; border: 1px solid #e2e8f0;">
-      <h3 style="margin-top: 0; font-size: 1.1rem; color: #1e293b;">🔍 Поиск и фильтры</h3>
-      
-      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 15px; align-items: flex-end;">
-        <!-- Поиск -->
-        <div>
-          <label style="font-size: 0.75rem; font-weight: bold; color: #64748b;">Поиск (текст, автор, товар):</label>
-          <input v-model="searchQuery" placeholder="Начните вводить..." style="width: 100%; padding: 11px; border-radius: 10px; border: 1px solid #cbd5e1; margin-top: 5px;" />
+    <!-- 1. БЛОК ФИЛЬТРОВ -->
+    <section class="admin-card filter-section">
+      <div class="filter-grid">
+        <div class="input-group search-group">
+          <label>🔍 Поиск</label>
+          <input v-model="searchQuery" placeholder="Текст, автор или товар..." />
         </div>
 
-        <!-- По статусу -->
-        <div>
-          <label style="font-size: 0.75rem; font-weight: bold; color: #64748b;">Статус:</label>
-          <select v-model="filterStatus" style="width: 100%; padding: 11px; border-radius: 10px; border: 1px solid #cbd5e1; margin-top: 5px;">
+        <div class="input-group">
+          <label>Статус</label>
+          <select v-model="filterStatus">
             <option value="all">Все отзывы</option>
             <option value="pending">⏳ На проверке</option>
             <option value="approved">✅ Опубликованные</option>
           </select>
         </div>
 
-        <!-- По оценке -->
-        <div>
-          <label style="font-size: 0.75rem; font-weight: bold; color: #64748b;">Оценка:</label>
-          <select v-model="ratingFilter" style="width: 100%; padding: 11px; border-radius: 10px; border: 1px solid #cbd5e1; margin-top: 5px;">
+        <div class="input-group">
+          <label>Оценка</label>
+          <select v-model="ratingFilter">
             <option value="all">Любая оценка</option>
             <option value="5">⭐⭐⭐⭐⭐ (5)</option>
             <option value="4">⭐⭐⭐⭐ (4)</option>
@@ -36,88 +40,102 @@
           </select>
         </div>
 
-        <button @click="resetFilters" style="padding: 12px; background: white; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; font-weight: 600;">
-          Сбросить
-        </button>
+        <button @click="resetFilters" class="btn-secondary">Сбросить</button>
       </div>
     </section>
 
     <!-- 2. ТАБЛИЦА ОТЗЫВОВ -->
-    <section>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0; color: #475569;">Найдено отзывов: {{ filteredReviews.length }}</h3>
-        <div style="font-weight: bold; color: #94a3b8;">Страница {{ currentPage }} из {{ totalPages || 1 }}</div>
+    <div class="table-container">
+      <div class="table-meta">
+        Страница {{ currentPage }} из {{ totalPages || 1 }}
       </div>
 
-      <table border="1" style="width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm);">
-        <thead style="background: #f1f5f9;">
-          <tr style="text-align: left;">
-            <th style="padding: 15px; width: 60px;">ID</th>
-            <th>Товар</th>
-            <th>Автор</th>
-            <th style="width: 100px;">Оценка</th>
-            <th style="width: 350px;">Комментарий</th>
-            <th style="text-align: center;">Статус</th>
-            <th style="text-align: center;">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="r in paginatedReviews" :key="r.id" :style="!r.is_approved ? {background: '#fffbeb'} : {}">
-            <td style="padding: 15px; color: #94a3b8;">#{{ r.id }}</td>
-            
-            <td style="padding: 15px;">
-              <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem;">{{ getProductName(r.product_id) }}</div>
-              <small style="color: #6366f1;">ID товара: {{ r.product_id }}</small>
-            </td>
+      <div class="admin-table-wrapper">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th class="col-id">ID</th>
+              <th>Товар</th>
+              <th>Автор</th>
+              <th class="text-center">Оценка</th>
+              <th class="col-comment">Комментарий</th>
+              <th class="text-center">Статус</th>
+              <th class="text-right">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in paginatedReviews" :key="r.id" :class="{ 'row-pending': !r.is_approved }">
+              <td class="col-id">#{{ r.id }}</td>
+              
+              <td>
+                <div class="product-info">
+                  <span class="product-name">{{ getProductName(r.product_id) }}</span>
+                  <small class="id-label">ID: {{ r.product_id }}</small>
+                </div>
+              </td>
 
-            <td style="padding: 15px;">
-              <div style="font-weight: 600;">{{ getUserName(r.user_id) }}</div>
-              <small style="color: #94a3b8;">User ID: {{ r.user_id }}</small>
-            </td>
+              <td>
+                <div class="author-info">
+                  <span class="author-name">{{ getUserName(r.user_id) }}</span>
+                  <small class="id-label">User ID: {{ r.user_id }}</small>
+                </div>
+              </td>
 
-            <td style="padding: 15px; text-align: center;">
-              <b style="color: #f59e0b; font-size: 1.1rem;">{{ r.rating }}</b><span style="color: #f59e0b;">★</span>
-            </td>
+              <td class="text-center">
+                <div class="rating-badge">
+                  <b>{{ r.rating }}</b><span>★</span>
+                </div>
+              </td>
 
-            <td style="padding: 15px; font-size: 0.9rem;">
-              <div style="margin-bottom: 5px;">{{ r.comment }}</div>
-              <div v-if="r.pros" style="color: #10b981;"><small><b>+</b> {{ r.pros }}</small></div>
-              <div v-if="r.cons" style="color: #f43f5e;"><small><b>−</b> {{ r.cons }}</small></div>
-            </td>
+              <td class="col-comment">
+                <div class="comment-text">{{ r.comment }}</div>
+                <div class="pros-cons">
+                  <div v-if="r.pros" class="pros"><b>+</b> {{ r.pros }}</div>
+                  <div v-if="r.cons" class="cons"><b>−</b> {{ r.cons }}</div>
+                </div>
+              </td>
 
-            <td style="padding: 15px; text-align: center;">
-              <span v-if="r.is_approved" style="color: #10b981; font-weight: 800; font-size: 0.75rem; text-transform: uppercase;">Опубликован</span>
-              <span v-else style="color: #f59e0b; font-weight: 800; font-size: 0.75rem; text-transform: uppercase;">На проверке</span>
-              <br />
-              <button @click="toggleApproval(r)" style="margin-top: 8px; padding: 5px 10px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 0.8rem;">
-                {{ r.is_approved ? 'Скрыть' : 'Одобрить' }}
-              </button>
-            </td>
+              <td class="text-center">
+                <div class="status-cell">
+                  <span class="badge" :class="r.is_approved ? 'approved' : 'pending'">
+                    {{ r.is_approved ? 'Опубликован' : 'На проверке' }}
+                  </span>
+                  <button @click="toggleApproval(r)" class="btn-toggle-status">
+                    {{ r.is_approved ? 'Скрыть' : 'Одобрить' }}
+                  </button>
+                </div>
+              </td>
 
-            <td style="padding: 15px; text-align: center;">
-              <button @click="deleteReview(r.id)" style="background: none; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">Удалить</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              <td class="text-right">
+                <button @click="deleteReview(r.id)" class="btn-delete">Удалить</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- 3. ПАГИНАЦИЯ -->
-      <div v-if="totalPages > 1" style="margin-top: 30px; display: flex; justify-content: center; align-items: center; gap: 8px;">
-        <button @click="currentPage--" :disabled="currentPage === 1" class="page-btn">←</button>
-        <button v-for="p in totalPages" :key="p" @click="currentPage = p" 
-                :style="currentPage === p ? {background: '#4f46e5', color: 'white', borderColor: '#4f46e5'} : {}"
-                class="page-btn-num">{{ p }}</button>
-        <button @click="currentPage++" :disabled="currentPage === totalPages" class="page-btn">→</button>
+      <div v-if="totalPages > 1" class="pagination-wrapper">
+        <button @click="currentPage--" :disabled="currentPage === 1" class="p-btn">←</button>
+        <div class="p-numbers">
+          <button v-for="p in totalPages" :key="p" @click="currentPage = p" :class="{ active: currentPage === p }">
+            {{ p }}
+          </button>
+        </div>
+        <button @click="currentPage++" :disabled="currentPage === totalPages" class="p-btn">→</button>
       </div>
 
-      <div v-if="filteredReviews.length === 0" style="text-align: center; padding: 60px; color: #94a3b8; background: white; border-radius: 12px; margin-top: 20px;">
-        Отзывов не найдено.
+      <div v-if="filteredReviews.length === 0" class="empty-state">
+        <div class="empty-icon">💬</div>
+        <h3>Отзывов не найдено</h3>
+        <p>Попробуйте изменить параметры фильтрации</p>
       </div>
-    </section>
+    </div>
   </div>
 </template>
 
 <script setup>
+/* КОД СКРИПТА ОСТАВЛЯЕМ ТВОЙ ОРИГИНАЛЬНЫЙ (логика не меняется) */
 import { ref, onMounted, computed, reactive, watch } from 'vue';
 import axios from 'axios';
 
@@ -129,12 +147,9 @@ const products = ref([]);
 const users = ref([]);
 const loading = ref(true);
 
-// Фильтры
 const filterStatus = ref('all');
 const ratingFilter = ref('all');
 const searchQuery = ref('');
-
-// Пагинация
 const currentPage = ref(1);
 const itemsPerPage = 20;
 
@@ -149,18 +164,12 @@ const loadData = async () => {
     reviews.value = rRes.data;
     products.value = pRes.data;
     users.value = uRes.data;
-  } catch (e) {
-    alert('Ошибка загрузки данных');
-  } finally {
-    loading.value = false;
-  }
+  } catch (e) { console.error('Ошибка загрузки данных'); } 
+  finally { loading.value = false; }
 };
 
 const resetFilters = () => {
-  filterStatus.value = 'all';
-  ratingFilter.value = 'all';
-  searchQuery.value = '';
-  currentPage.value = 1;
+  filterStatus.value = 'all'; ratingFilter.value = 'all'; searchQuery.value = ''; currentPage.value = 1;
 };
 
 const getProductName = (id) => products.value.find(p => p.id === id)?.name || 'Товар не найден';
@@ -169,18 +178,11 @@ const getUserName = (id) => {
   return u ? `${u.first_name} ${u.last_name || ''}` : 'Гость';
 };
 
-// --- ЛОГИКА ФИЛЬТРАЦИИ ---
 const filteredReviews = computed(() => {
   let res = [...reviews.value];
-
-  // 1. По статусу
   if (filterStatus.value === 'approved') res = res.filter(r => r.is_approved);
   if (filterStatus.value === 'pending') res = res.filter(r => !r.is_approved);
-
-  // 2. По оценке
   if (ratingFilter.value !== 'all') res = res.filter(r => r.rating === parseInt(ratingFilter.value));
-
-  // 3. По тексту (Поиск)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim();
     res = res.filter(r => 
@@ -189,11 +191,9 @@ const filteredReviews = computed(() => {
       getUserName(r.user_id).toLowerCase().includes(q)
     );
   }
-
   return res;
 });
 
-// --- ЛОГИКА ПАГИНАЦИИ ---
 const totalPages = computed(() => Math.ceil(filteredReviews.value.length / itemsPerPage));
 const paginatedReviews = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
@@ -202,7 +202,6 @@ const paginatedReviews = computed(() => {
 
 watch([searchQuery, filterStatus, ratingFilter], () => currentPage.value = 1);
 
-// CRUD
 const toggleApproval = async (review) => {
   try {
     const newStatus = !review.is_approved;
@@ -223,7 +222,87 @@ onMounted(loadData);
 </script>
 
 <style scoped>
-.page-btn { padding: 10px 15px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer; font-weight: bold; }
-.page-btn-num { width: 40px; height: 40px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer; font-weight: bold; }
-.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.admin-reviews {
+  padding: 40px 20px;
+  animation: fadeIn 0.4s ease-out;
+  color: var(--text-main);
+}
+
+/* ШАПКА */
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+h1 { font-size: 2.2rem; font-weight: 800; margin: 0; }
+.subtitle { color: var(--text-muted); margin-top: 5px; }
+.stats-badge { background: var(--primary-light); color: var(--primary); padding: 10px 20px; border-radius: 50px; font-weight: 700; }
+
+/* КАРТОЧКИ */
+.admin-card {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 30px;
+}
+
+.card-title { margin-top: 0; margin-bottom: 25px; font-size: 1.1rem; font-weight: 700; }
+
+/* ФИЛЬТРЫ */
+.filter-section { background-color: var(--bg-input) !important; border-style: dashed !important; }
+.filter-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 20px; align-items: flex-end; }
+
+.input-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted) !important; margin-bottom: 8px; text-transform: uppercase; }
+
+input, select {
+  width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color);
+  background-color: var(--bg-input) !important; color: var(--text-main) !important; transition: all 0.2s;
+}
+
+.btn-secondary { padding: 12px 20px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; color: var(--text-main); font-weight: 600; }
+
+/* ТАБЛИЦА */
+.table-meta { margin-bottom: 10px; font-size: 0.85rem; color: var(--text-muted); }
+.admin-table-wrapper { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th { background-color: var(--bg-input) !important; padding: 18px 20px; text-align: left; font-size: 0.75rem; color: var(--text-muted) !important; border-bottom: 2px solid var(--border-color); text-transform: uppercase; }
+.admin-table td { padding: 15px 20px; border-bottom: 1px solid var(--border-color); color: var(--text-main) !important; vertical-align: middle; }
+
+/* ПОДСВЕТКА ОЖИДАЮЩИХ */
+.row-pending { background-color: rgba(245, 158, 11, 0.05); }
+
+/* ДАННЫЕ В ТАБЛИЦЕ */
+.col-id { color: var(--text-muted) !important; font-family: monospace; width: 60px; }
+.product-name, .author-name { display: block; font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
+.id-label { color: var(--text-muted); font-size: 0.75rem; }
+
+.rating-badge { color: var(--warning); font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 2px; }
+
+.col-comment { width: 350px; }
+.comment-text { font-size: 0.9rem; line-height: 1.4; margin-bottom: 8px; }
+.pros-cons { font-size: 0.8rem; }
+.pros { color: var(--success); }
+.cons { color: var(--danger); }
+
+/* СТАТУСЫ */
+.badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
+.approved { background: var(--success-light) !important; color: var(--success) !important; }
+.pending { background: var(--warning-light) !important; color: var(--warning) !important; }
+
+.btn-toggle-status { display: block; width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; color: var(--text-main); }
+
+.btn-delete { background: var(--danger-light); color: var(--danger) !important; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+/* ПАГИНАЦИЯ */
+.pagination-wrapper { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 40px; }
+.p-btn { padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-main); cursor: pointer; }
+.p-numbers { display: flex; gap: 8px; }
+.p-numbers button { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-main); cursor: pointer; font-weight: 700; }
+.p-numbers button.active { background-color: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ПУСТОЕ СОСТОЯНИЕ */
+.empty-state { text-align: center; padding: 80px 20px; background-color: var(--bg-input); border-radius: var(--radius-lg); border: 2px dashed var(--border-color); color: var(--text-muted); }
+.empty-icon { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
+
+/* ТЕМНАЯ ТЕМА ФОРС */
+:deep(body.dark-theme) .admin-card { background-color: #1e293b !important; }
+:deep(body.dark-theme) .admin-table tr:hover { background-color: rgba(255,255,255,0.02); }
 </style>

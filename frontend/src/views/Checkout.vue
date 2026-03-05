@@ -1,201 +1,209 @@
 <template>
-  <div class="checkout-page" style="padding: 20px; max-width: 1200px; margin: 0 auto;">
-    <h1 style="text-align: center; margin-bottom: 40px;">Оформление заказа</h1>
+  <div class="checkout-page">
+    <h1 class="page-title">Оформление заказа</h1>
 
     <!-- СОСТОЯНИЕ ПУСТОЙ КОРЗИНЫ -->
-    <div v-if="cartStore.items.length === 0" style="text-align: center; padding: 80px 0;">
+    <div v-if="cartStore.items.length === 0" class="empty-cart-state">
+      <div class="empty-icon">🛒</div>
       <h2>Ваша корзина пуста</h2>
-      <router-link to="/catalog"><button style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px;">В каталог</button></router-link>
+      <router-link to="/catalog">
+        <button class="btn-primary">В каталог</button>
+      </router-link>
     </div>
 
-    <div v-else style="display: flex; gap: 40px; align-items: flex-start;">
+    <div v-else class="checkout-layout">
       
-      <div style="flex: 2;">
-        <!-- 1. КОНТАКТЫ -->
-        <section style="border: 1px solid #eee; padding: 25px; border-radius: 12px; margin-bottom: 25px; background: white;">
-          <h3 style="margin-top: 0; color: #2c3e50;">👤 Контактные данные</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
-            <div>
-              <label style="font-size: 0.9em; color: #666; font-weight: bold;">Имя *</label><br>
-              <input v-model="form.name" placeholder="Имя Фамилия" required style="width: 100%; padding: 12px; margin-top:5px; border: 1px solid #ddd; border-radius: 6px;" />
+      <div class="checkout-main">
+        <!-- 1. КОНТАКТЫ И ГОРОД -->
+        <section class="checkout-section">
+          <h3><span class="section-icon">👤</span> Контактные данные</h3>
+          
+          <!-- ВЫБОР ГОРОДА ПРЯМО ТУТ -->
+          <div class="input-group full-width-group">
+             <label>📍 Ваш Город (населенный пункт) *</label>
+             <div class="city-input-wrap">
+               <input 
+                 v-model="checkoutCity" 
+                 @blur="updateGlobalCity"
+                 @keyup.enter="updateGlobalCity"
+                 placeholder="Введите ваш город для обновления списка ПВЗ..." 
+               />
+               <span class="city-hint">Нажмите Enter или кликните вне поля для обновления</span>
+             </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Имя *</label>
+              <input v-model="form.name" placeholder="Имя Фамилия" required />
             </div>
-            <div>
-              <label style="font-size: 0.9em; color: #666; font-weight: bold;">Телефон *</label><br>
-              <input v-model="form.phone" type="tel" placeholder="+7..." required style="width: 100%; padding: 12px; margin-top:5px; border: 1px solid #ddd; border-radius: 6px;" />
+            <div class="input-group">
+              <label>Телефон *</label>
+              <input v-model="form.phone" type="tel" placeholder="+7..." required />
             </div>
-            <div>
-              <label style="font-size: 0.9em; color: #666; font-weight: bold;">Email *</label><br>
-              <input v-model="form.email" type="email" placeholder="mail@example.com" required style="width: 100%; padding: 12px; margin-top:5px; border: 1px solid #ddd; border-radius: 6px;" />
+            <div class="input-group">
+              <label>Email *</label>
+              <input v-model="form.email" type="email" placeholder="mail@example.com" required />
             </div>
           </div>
         </section>
 
         <!-- 2. ПВЗ -->
-        <section style="border: 1px solid #eee; padding: 25px; border-radius: 12px; margin-bottom: 25px; background: white;">
-          <h3 style="margin-top: 0; color: #2c3e50;">📍 Пункт выдачи в г. {{ appStore.city }}</h3>
+        <section class="checkout-section">
+          <h3><span class="section-icon">📍</span> Пункт выдачи в г. {{ appStore.city }}</h3>
           
           <div v-if="localWarehouses.length > 0">
-            <select v-model="selectedWarehouseId" style="width: 100%; padding: 15px; border-radius: 8px; border: 2px solid #007bff; font-size: 1.1em; cursor: pointer; outline: none; margin-bottom: 20px;">
+            <select v-model="selectedWarehouseId" class="warehouse-select">
               <option :value="null">-- Выберите адрес --</option>
               <option v-for="w in localWarehouses" :key="w.id" :value="w.id">
                 {{ w.address }}
               </option>
             </select>
           </div>
-          <div v-else style="background: #fff3cd; color: #856404; padding: 20px; border-radius: 8px; border: 1px solid #ffeeba; text-align: center;">
-            <h3>В г. {{ appStore.city }} нет ПВЗ</h3>
+          <div v-else class="no-warehouses-alert">
+            <p>В г. <b>{{ appStore.city }}</b> нет доступных ПВЗ. Укажите другой город.</p>
           </div>
         </section>
 
         <!-- 3. СПОСОБ ОПЛАТЫ -->
-        <section style="border: 1px solid #eee; padding: 25px; border-radius: 12px; background: white;">
-          <h3 style="margin-top: 0; color: #2c3e50;">💳 Способ оплаты</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        <section class="checkout-section">
+          <h3><span class="section-icon">💳</span> Способ оплаты</h3>
+          <div class="payment-methods-grid">
             <label v-for="m in paymentMethods" :key="m.id" 
-                   :style="{ background: form.payment_method === m.id ? '#eef6ff' : '#f9f9f9', borderColor: form.payment_method === m.id ? '#475be8' : '#eee' }" 
-                   style="border: 2px solid; padding: 15px; border-radius: 8px; cursor: pointer; text-align: center; transition: 0.2s;">
-              <input type="radio" :value="m.id" v-model="form.payment_method" style="display: none;" />
-              <div style="font-size: 1.5em; margin-bottom: 5px;">{{ m.icon }}</div>
+                   class="payment-method-card"
+                   :class="{ active: form.payment_method === m.id }">
+              <input type="radio" :value="m.id" v-model="form.payment_method" />
+              <div class="method-icon">{{ m.icon }}</div>
               <strong>{{ m.label }}</strong>
             </label>
           </div>
 
           <!-- ВЫБОР СОХРАНЕННОЙ КАРТЫ -->
-          <div v-if="form.payment_method === 'card'" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-            <h4 style="margin-bottom: 15px;">Выберите карту для оплаты:</h4>
-            
-            <div v-if="savedCards.length > 0" style="display: flex; flex-wrap: wrap; gap: 10px;">
-              <div v-for="card in savedCards" :key="card.id" 
-                   @click="selectedCardId = card.id"
-                   :style="{ borderColor: selectedCardId === card.id ? '#475be8' : '#ddd', background: selectedCardId === card.id ? '#f0f2ff' : '#fff' }"
-                   style="border: 2px solid; padding: 10px 15px; border-radius: 10px; cursor: pointer; min-width: 200px;">
-                <div style="font-size: 0.7rem; color: #999; text-transform: uppercase;">{{ card.brand }}</div>
-                <div style="font-family: monospace; font-weight: bold;">{{ card.card_number_masked }}</div>
-              </div>
-              
-              <div @click="selectedCardId = 'new'"
-                   :style="{ borderColor: selectedCardId === 'new' ? '#475be8' : '#ddd', background: selectedCardId === 'new' ? '#f0f2ff' : '#fff' }"
-                   style="border: 2px solid; padding: 10px 15px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                <span>+ Новая карта</span>
+          <transition name="fade">
+            <div v-if="form.payment_method === 'card'" class="saved-cards-section">
+              <h4>Выберите карту для оплаты:</h4>
+              <div class="cards-list">
+                <div v-for="card in savedCards" :key="card.id" 
+                     @click="selectedCardId = card.id"
+                     class="bank-card-item"
+                     :class="{ selected: selectedCardId === card.id }">
+                  <div class="card-brand">{{ card.brand }}</div>
+                  <div class="card-mask">{{ card.card_number_masked }}</div>
+                  <div class="card-check" v-if="selectedCardId === card.id">✔</div>
+                </div>
+                
+                <div @click="selectedCardId = 'new'"
+                     class="bank-card-item new-card-btn"
+                     :class="{ selected: selectedCardId === 'new' }">
+                  <span>+ Новая карта</span>
+                </div>
               </div>
             </div>
-
-            <div v-else>
-               <p style="color: #666; font-size: 0.9em;">У вас нет сохраненных карт. Вы сможете ввести данные на следующем шаге.</p>
-               <button @click="selectedCardId = 'new'" v-if="selectedCardId !== 'new'" style="padding: 8px 15px; background: #eee; border: none; border-radius: 5px; cursor: pointer;">Оплатить новой картой</button>
-            </div>
-          </div>
+          </transition>
         </section>
 
         <!-- КНОПКИ ДЕЙСТВИЯ -->
-        <div style="margin-top: 30px; display: flex; gap: 15px;">
-          <button @click="cancelOrder" style="width: 30%; padding: 18px; background: white; color: #e74c3c; border: 2px solid #e74c3c; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer;">
-            ОТМЕНИТЬ
-          </button>
-          <button @click="handleOrderProcess" :disabled="loading || !selectedWarehouseId || (form.payment_method === 'card' && !selectedCardId)" 
-                  :style="{ opacity: (loading || !selectedWarehouseId) ? 0.5 : 1 }"
-                  style="width: 70%; padding: 18px; background: #27ae60; color: white; border: none; border-radius: 8px; font-size: 1.2em; font-weight: bold; cursor: pointer;">
+        <div class="action-footer">
+          <button @click="cancelOrder" class="btn-cancel">ОТМЕНИТЬ</button>
+          <button @click="handleOrderProcess" 
+                  :disabled="loading || !selectedWarehouseId || (form.payment_method === 'card' && !selectedCardId)" 
+                  class="btn-submit"
+                  :style="{ opacity: (loading || !selectedWarehouseId) ? 0.5 : 1 }">
             {{ loading ? 'ОБРАБОТКА...' : '✔ ПОДТВЕРДИТЬ И ОПЛАТИТЬ' }}
           </button>
         </div>
       </div>
 
-      <!-- ПРАВАЯ ПАНЕЛЬ: ИТОГО С ДЕТАЛИЗАЦИЕЙ ДОСТАВКИ -->
-      <div style="flex: 1; border: 1px solid #eee; padding: 25px; border-radius: 12px; background: white; position: sticky; top: 90px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
-        <h3 style="margin-top: 0;">Ваш заказ</h3>
-        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;" />
-        
-        <div v-for="item in cartStore.items" :key="item?.id" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-           <div style="flex: 1; font-size: 0.9em; color: #444;">
-             {{ item.name }} <br>
-             <small style="color: #999;">{{ item.quantity }} шт. × {{ item.discount_price || item.price }} ₽</small>
-           </div>
-           <b>{{ (item.discount_price || item.price) * item.quantity }} ₽</b>
-        </div>
-
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        
-        <div style="display: flex; justify-content: space-between; color: #666; margin-bottom: 10px;">
-          <span>Сумма товаров:</span>
-          <span>{{ cartStore.totalPriceFinal }} ₽</span>
-        </div>
-
-        <!-- ДЕТАЛИЗАЦИЯ ДОСТАВКИ -->
-        <div style="margin-bottom: 10px;">
-          <div style="display: flex; justify-content: space-between; font-weight: bold; color: #333; margin-bottom: 5px;">
-            <span>Доставка:</span>
-            <span>{{ shippingBreakdown.cost === 0 ? 'Бесплатно' : shippingBreakdown.cost + ' ₽' }}</span>
+      <!-- ПРАВАЯ ПАНЕЛЬ: ИТОГО -->
+      <aside class="checkout-sidebar">
+        <div class="summary-card">
+          <h3>Ваш заказ</h3>
+          <div class="summary-items">
+            <div v-for="item in cartStore.items" :key="item?.id" class="summary-item">
+              <div class="item-info">
+                <span class="item-name">{{ item.name }}</span>
+                <small>{{ item.quantity }} шт. × {{ item.discount_price || item.price }} ₽</small>
+              </div>
+              <span class="item-total-price">{{ (item.discount_price || item.price) * item.quantity }} ₽</span>
+            </div>
           </div>
 
-          <!-- Описание почему доставка платная (Межгород) -->
-          <div v-if="shippingBreakdown.intercityItems.length > 0" style="background: #fff9f9; padding: 10px; border-radius: 8px; font-size: 0.85em; border: 1px solid #fde0e0; color: #555;">
-             <div style="color: #e44d26; font-weight: bold; margin-bottom: 5px;">Едут из другого региона (Межгород):</div>
-             <div v-for="i in shippingBreakdown.intercityItems" :key="i.id" style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-               <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;">- {{ i.name }}</span>
-               <span>({{ i.qty }} шт.)</span>
-             </div>
-             <div style="margin-top: 5px; border-top: 1px dashed #f5c6c6; padding-top: 5px; display: flex; justify-content: space-between;">
-               <span>Базовый тариф:</span>
-               <span>800 ₽</span>
-             </div>
-          </div>
+          <div class="summary-totals">
+            <div class="total-row">
+              <span>Сумма товаров:</span>
+              <span>{{ cartStore.totalPriceFinal }} ₽</span>
+            </div>
 
-          <!-- Описание надбавки за вес -->
-          <div v-if="shippingBreakdown.weightSurcharge > 0" style="background: #f8f9fa; padding: 10px; border-radius: 8px; font-size: 0.85em; border: 1px solid #eee; color: #555; margin-top: 5px;">
-             <div style="display: flex; justify-content: space-between; align-items: center;">
-               <span>Перевес (Общий вес: {{ shippingBreakdown.totalWeight }} кг):</span>
-               <span style="color: #e44d26; font-weight: bold;">+{{ shippingBreakdown.weightSurcharge }} ₽</span>
-             </div>
-             <div style="font-size: 0.75em; color: #999;">Более 10 кг (+50₽ за каждый кг)</div>
+            <!-- ДЕТАЛИЗАЦИЯ ДОСТАВКИ -->
+            <div class="delivery-breakdown">
+              <div class="total-row delivery-title">
+                <span>Доставка:</span>
+                <span :class="{ free: shippingBreakdown.cost === 0 }">
+                  {{ shippingBreakdown.cost === 0 ? 'Бесплатно' : shippingBreakdown.cost + ' ₽' }}
+                </span>
+              </div>
+
+              <!-- Если есть Межгород -->
+              <div v-if="shippingBreakdown.intercityItems.length > 0" class="intercity-alert">
+                <div class="alert-title">📦 Межгород (доставка из другого региона):</div>
+                <ul class="intercity-list">
+                  <li v-for="i in shippingBreakdown.intercityItems" :key="i.id">
+                    {{ i.name }} — <b>{{ i.qty }} шт.</b>
+                  </li>
+                </ul>
+              </div>
+
+              <div v-if="shippingBreakdown.weightSurcharge > 0" class="weight-alert">
+                <span>⚖️ Перевес: <b>{{ shippingBreakdown.totalWeight }} кг</b></span>
+                <span class="surcharge">+{{ shippingBreakdown.weightSurcharge }} ₽</span>
+              </div>
+            </div>
+
+            <div class="final-price">
+              <span>Итого:</span>
+              <span class="price-val">{{ cartStore.totalPriceFinal + shippingBreakdown.cost }} ₽</span>
+            </div>
           </div>
         </div>
-
-        <div style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee; font-size: 1.4em; font-weight: bold;">
-          <span>Итого:</span>
-          <span style="color: #e44d26;">{{ cartStore.totalPriceFinal + shippingBreakdown.cost }} ₽</span>
-        </div>
-      </div>
+      </aside>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО ОПЛАТЫ (БЕЗ ИЗМЕНЕНИЙ) -->
-    <div v-if="showPaymentModal" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(15,23,42,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-      <div style="background: white; width: 400px; padding: 35px; border-radius: 24px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
-        
-        <div v-if="paymentStep === 'loading'">
-            <div class="payment-spinner" style="margin: 0 auto 20px; border: 4px solid #f3f3f3; border-top: 4px solid #475be8; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
-            <h3>Связь с банком...</h3>
-            <p style="color: #666;">Пожалуйста, не закрывайте страницу, идет авторизация транзакции.</p>
+    <!-- МОДАЛЬНОЕ ОКНО ОПЛАТЫ -->
+    <div v-if="showPaymentModal" class="modal-overlay" @click.self="showPaymentModal = false">
+      <div class="modal-content">
+        <div v-if="paymentStep === 'loading'" class="payment-loading">
+          <div class="payment-spinner"></div>
+          <h3>Связь с банком...</h3>
+          <p>Пожалуйста, не закрывайте страницу</p>
         </div>
 
-        <div v-if="paymentStep === 'form'">
-            <h2 style="margin-bottom: 5px;">ApexDrive <span style="color:#475be8">Pay</span></h2>
-            <p style="margin-bottom: 20px; font-weight: bold;">Сумма к оплате: {{ cartStore.totalPriceFinal + shippingBreakdown.cost }} ₽</p>
-            
-            <div v-if="selectedCardId === 'new'" style="background: #f8fafc; padding: 20px; border-radius: 15px; text-align: left; margin-bottom: 20px; border: 1px solid #eee;">
-                <label style="font-size: 10px; font-weight: bold; color: #999;">НОМЕР КАРТЫ</label>
-                <input v-model="newCardData.number" placeholder="0000 0000 0000 0000" maxlength="16" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px;" />
-                <div style="display: flex; gap: 10px;">
-                    <input v-model="newCardData.expiry" placeholder="ММ/ГГ" maxlength="5" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
-                    <input type="password" placeholder="CVC" maxlength="3" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
-                </div>
+        <div v-if="paymentStep === 'form'" class="payment-form">
+          <h2 class="bank-title">ApexDrive <span class="accent-pay">Pay</span></h2>
+          <div class="amount-badge">К оплате: {{ cartStore.totalPriceFinal + shippingBreakdown.cost }} ₽</div>
+          
+          <div v-if="selectedCardId === 'new'" class="card-inputs">
+            <label>НОМЕР КАРТЫ</label>
+            <input v-model="newCardData.number" placeholder="0000 0000 0000 0000" maxlength="16" class="long-input" />
+            <div class="card-row">
+              <input v-model="newCardData.expiry" placeholder="ММ/ГГ" maxlength="5" />
+              <input type="password" placeholder="CVC" maxlength="3" />
             </div>
+          </div>
 
-            <div v-else style="background: #1e293b; color: white; padding: 25px; border-radius: 15px; text-align: left; margin-bottom: 20px;">
-                <div style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">ОПЛАТА СОХРАНЕННОЙ КАРТОЙ</div>
-                <div style="font-size: 1.2rem; font-family: monospace; letter-spacing: 2px;">{{ getSelectedCardMask() }}</div>
-                <div style="margin-top: 15px; font-size: 0.8rem;">ApexDrive Secure Transaction</div>
-            </div>
+          <div v-else class="card-preview">
+            <div class="preview-label">ОПЛАТА СОХРАНЕННОЙ КАРТОЙ</div>
+            <div class="preview-number">{{ getSelectedCardMask() }}</div>
+            <div class="preview-footer">ApexDrive Secure</div>
+          </div>
 
-            <button @click="processPayment" style="width: 100%; padding: 15px; background: #475be8; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 1.1rem;">
-                ПОДТВЕРДИТЬ ОПЛАТУ
-            </button>
-            <button @click="showPaymentModal = false" style="margin-top: 15px; background: none; border: none; color: #999; cursor: pointer;">Отмена</button>
+          <button @click="processPayment" class="btn-confirm-pay">ПОДТВЕРДИТЬ ОПЛАТУ</button>
+          <button @click="showPaymentModal = false" class="btn-text">Отмена</button>
         </div>
 
-        <div v-if="paymentStep === 'success'">
-            <div style="width: 70px; height: 70px; background: #f0fdf4; color: #27ae60; font-size: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">✔</div>
-            <h3>Оплата успешна!</h3>
-            <p>Ваш заказ №{{ lastOrderId }} принят.</p>
+        <div v-if="paymentStep === 'success'" class="payment-success">
+          <div class="success-icon">✔</div>
+          <h3>Оплата успешна!</h3>
+          <p>Ваш заказ №{{ lastOrderId }} принят.</p>
         </div>
       </div>
     </div>
@@ -203,7 +211,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive } from 'vue';
+import { ref, onMounted, computed, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useCartStore } from '@/stores/cartStore';
@@ -219,6 +227,7 @@ const savedCards = ref([]);
 const selectedWarehouseId = ref(null);
 const selectedCardId = ref(null);
 
+const checkoutCity = ref(''); // Локальная модель для инпута города
 const form = ref({ name: '', phone: '', email: '', payment_method: 'card' });
 
 const showPaymentModal = ref(false);
@@ -234,68 +243,74 @@ const paymentMethods = [
 
 const isSameCity = (c1, c2) => c1?.trim().toLowerCase() === c2?.trim().toLowerCase();
 
-// Фильтруем ПВЗ только для текущего города пользователя
+// --- 1. ЛОГИКА ОБНОВЛЕНИЯ ГОРОДА ---
+const updateGlobalCity = async () => {
+    if (!checkoutCity.value.trim()) return;
+    
+    const newCity = checkoutCity.value.trim();
+    appStore.setCity(newCity); // Обновляем в Pinia (меняется шапка и расчеты)
+    
+    // Если пользователь авторизован, сохраняем в БД навсегда
+    const uid = localStorage.getItem('user_id');
+    if (uid) {
+        try {
+            await axios.put(`/api/users/profile/${uid}`, { saved_address: newCity });
+        } catch (e) { console.error("Ошибка сохранения города в БД"); }
+    }
+
+    // Сбрасываем выбранный ПВЗ, так как город изменился
+    selectedWarehouseId.value = null;
+};
+
+// Фильтруем ПВЗ для выбранного города
 const localWarehouses = computed(() => {
     return warehouses.value.filter(w => isSameCity(w.city_name, appStore.city) && w.is_pickup_point);
 });
 
-// 1. Остаток на конкретно ВЫБРАННОМ ПВЗ (Для зеленой галочки в интерфейсе)
-const getStockAtSelected = (item) => {
-    if (!selectedWarehouseId.value || !item?.product_stocks) return 0;
-    const stock = item.product_stocks.find(s => s.warehouse_id === selectedWarehouseId.value);
-    return stock ? stock.quantity : 0;
-};
-
-// 2. ИСПРАВЛЕНИЕ: Общий остаток во ВСЕМ ТЕКУЩЕМ ГОРОДЕ
-const getStockInEntireCity = (item) => {
+// --- 2. ИСПРАВЛЕННАЯ ЛОГИКА ОСТАТКОВ (МЕЖГОРОД) ---
+const getStockInCity = (item) => {
     if (!item?.product_stocks) return 0;
     
     let totalInCity = 0;
     item.product_stocks.forEach(stockRecord => {
-        // Находим склад, к которому относится этот остаток
+        // Ищем склад из ОБЩЕГО списка складов, чтобы узнать его город
         const wh = warehouses.value.find(hw => hw.id === stockRecord.warehouse_id);
-        // Если этот склад находится в городе пользователя, плюсуем остаток
+        
+        // Если город склада совпадает с выбранным городом
         if (wh && isSameCity(wh.city_name, appStore.city)) {
             totalInCity += Number(stockRecord.quantity) || 0;
         }
     });
-    
     return totalInCity;
 };
 
-// ОБНОВЛЕННАЯ И ТОЧНАЯ ЛОГИКА ДОСТАВКИ
 const shippingBreakdown = computed(() => {
     if (!selectedWarehouseId.value) return { cost: 0, intercityItems: [], weightSurcharge: 0, totalWeight: 0 };
     if (cartStore.totalPriceFinal > 50000) return { cost: 0, intercityItems: [], weightSurcharge: 0, totalWeight: 0 };
     
     let intercityItems = [];
     
-    // Проходим по всей корзине
     cartStore.items.forEach(item => { 
-      // Считаем сумму этого товара на ВСЕХ складах ТЕКУЩЕГО города
-      const cityStock = getStockInEntireCity(item);
+      const cityStock = getStockInCity(item); // Сколько есть в ЭТОМ городе
       
-      // Если клиент хочет больше, чем есть суммарно во всем городе,
-      // то разницу (недостаток) мы повезем из другого города (Межгород)
+      // Если хотят купить больше, чем есть во ВСЕМ городе - остаток едет межгородом
       if (item.quantity > cityStock) {
         intercityItems.push({ 
             name: item.name, 
             id: item.id, 
-            qty: item.quantity - cityStock // Вот это количество поедет Межгородом
+            qty: item.quantity - cityStock
         });
       }
     });
     
-    // Считаем доплату за вес
     const totalWeight = Math.ceil(cartStore.totalWeight || 0);
     const weightSurcharge = totalWeight > 10 ? (totalWeight - 10) * 50 : 0;
     
-    // Если ни один товар не едет межгородом и нет перевеса
     if (intercityItems.length === 0 && weightSurcharge === 0) {
       return { cost: 0, intercityItems: [], weightSurcharge: 0, totalWeight };
     }
 
-    // Если есть хотя бы 1 товар межгород (из другого региона) — берем базовые 800 руб.
+    // Если есть хотя бы 1 товар из другого города - базовая цена 800
     const baseCost = intercityItems.length > 0 ? 800 : 0;
     const finalCost = baseCost + weightSurcharge;
 
@@ -308,6 +323,8 @@ const getSelectedCardMask = () => {
 };
 
 onMounted(async () => {
+    checkoutCity.value = appStore.city; // Инициализируем инпут текущим городом
+
     const uid = localStorage.getItem('user_id');
     try {
         const [wRes, cRes] = await Promise.all([
@@ -339,29 +356,21 @@ const handleOrderProcess = () => {
 };
 
 const processPayment = async () => {
-    if (selectedCardId.value === 'new' && newCardData.number.length < 16) return alert("Введите карту");
+    if (selectedCardId.value === 'new' && newCardData.number.length < 16) return alert("Введите карту полностью");
     paymentStep.value = 'loading';
     
     setTimeout(async () => {
         await submitOrder('paid');
-        
         if (selectedCardId.value === 'new') {
             const uid = localStorage.getItem('user_id');
             if (uid) {
               await axios.post('/api/cards', { 
-                  user_id: uid, 
-                  number: newCardData.number, 
-                  holder: 'CUSTOMER', 
-                  expiry: newCardData.expiry 
+                  user_id: uid, number: newCardData.number, holder: 'CUSTOMER', expiry: newCardData.expiry 
               });
             }
         }
-        
         paymentStep.value = 'success';
-        setTimeout(() => { 
-            router.push('/profile'); 
-            cartStore.clearCart(); 
-        }, 2000);
+        setTimeout(() => { router.push('/profile'); cartStore.clearCart(); }, 2000);
     }, 2000);
 };
 
@@ -379,20 +388,478 @@ const submitOrder = async (payStatus) => {
             shipping_cost: shippingBreakdown.value.cost, 
             items: cartStore.items.map(i => ({ product_id: i.id, quantity: i.quantity }))
         });
-        
         lastOrderId.value = res.data.orderId;
-        
         if (payStatus !== 'paid') {
             alert("Заказ оформлен!");
             cartStore.clearCart();
             router.push('/profile');
         }
-    } catch (e) { 
-        alert(e.response?.data?.error || "Ошибка заказа"); 
-    } finally { 
-        loading.value = false; 
-    }
+    } catch (e) { alert(e.response?.data?.error || "Ошибка заказа"); } 
+    finally { loading.value = false; }
 };
 
 const cancelOrder = () => router.push('/cart');
 </script>
+
+<style scoped>
+.checkout-page {
+    padding: 40px 20px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.page-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 40px;
+}
+
+.checkout-layout {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.checkout-main {
+    flex: 2;
+}
+
+.checkout-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.checkout-section:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.checkout-section h3 {
+    margin-top: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.section-icon {
+    font-size: 1.5rem;
+}
+
+/* ФОРМА И ГОРОД */
+.full-width-group {
+    margin-bottom: 25px;
+    background: var(--bg-input);
+    padding: 15px;
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border-color);
+}
+
+.city-input-wrap {
+    position: relative;
+}
+
+.city-input-wrap input {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--primary);
+}
+
+.city-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 5px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.warehouse-select {
+    width: 100%;
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--primary);
+    background: var(--bg-card);
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.no-warehouses-alert {
+    background: var(--warning-light);
+    color: var(--warning);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-weight: 600;
+}
+
+/* ОПЛАТА */
+.payment-methods-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.payment-method-card {
+    background: var(--bg-input);
+    border: 2px solid transparent;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    text-align: center;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.payment-method-card input {
+    display: none;
+}
+
+.payment-method-card.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+}
+
+.method-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.saved-cards-section {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.cards-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.bank-card-item {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 15px 20px;
+    cursor: pointer;
+    min-width: 200px;
+    position: relative;
+    transition: var(--transition);
+}
+
+.bank-card-item.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.card-brand {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.card-mask {
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-top: 5px;
+}
+
+.card-check {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary);
+}
+
+.new-card-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    border-style: dashed;
+}
+
+/* ПРАВАЯ ПАНЕЛЬ */
+.checkout-sidebar {
+    flex: 1;
+    position: sticky;
+    top: 100px;
+}
+
+.summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: var(--shadow-lg);
+}
+
+.summary-items {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    padding-right: 10px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--bg-input);
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+}
+
+.item-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.summary-totals {
+    border-top: 1px solid var(--border-color);
+    padding-top: 20px;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.delivery-title {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.free {
+    color: var(--success);
+}
+
+.intercity-alert {
+    background: var(--danger-light);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 15px;
+    font-size: 0.85rem;
+}
+
+.alert-title {
+    color: var(--danger);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.intercity-list {
+    list-style: none;
+    padding: 0;
+}
+
+.weight-alert {
+    background: var(--bg-input);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 15px;
+}
+
+.surcharge {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+.final-price {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px dashed var(--border-color);
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.price-val {
+    color: var(--primary);
+}
+
+/* КНОПКИ */
+.action-footer {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.btn-cancel {
+    flex: 1;
+    background: var(--bg-card);
+    color: var(--danger);
+    border: 2px solid var(--danger);
+    padding: 18px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+}
+
+.btn-cancel:hover {
+    background: var(--danger-light);
+}
+
+.btn-submit {
+    flex: 2;
+    background: var(--success);
+    color: white;
+    padding: 18px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 1.1rem;
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+}
+
+/* ПЛАТЕЖНАЯ МОДАЛКА */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    width: 90%;
+    max-width: 420px;
+    padding: 40px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.bank-title {
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+.accent-pay { color: var(--primary); }
+
+.amount-badge {
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 10px;
+    border-radius: 50px;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+.card-inputs {
+    text-align: left;
+    margin-bottom: 25px;
+}
+
+.card-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.card-preview {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: white;
+    padding: 30px;
+    border-radius: var(--radius-md);
+    text-align: left;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+}
+
+.preview-number {
+    font-family: monospace;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    margin: 15px 0;
+}
+
+.btn-confirm-pay {
+    width: 100%;
+    padding: 16px;
+    background: var(--primary);
+    color: white;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.btn-text {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.payment-spinner {
+    width: 50px; height: 50px;
+    border: 4px solid var(--bg-input);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* АДАПТИВНОСТЬ */
+@media (max-width: 992px) {
+    .checkout-layout { flex-direction: column; }
+    .checkout-sidebar { width: 100%; position: static; }
+}
+
+@media (max-width: 768px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .payment-methods-grid { grid-template-columns: 1fr; }
+    .action-footer { flex-direction: column; }
+    .page-title { font-size: 1.8rem; }
+}
+</style>

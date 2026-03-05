@@ -1,174 +1,178 @@
 <template>
-  <div class="orders-page" style="max-width: 1000px; margin: 0 auto; padding: 20px;">
-    <div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-      <h1 style="margin: 0;">📦 Мои заказы</h1>
-      <router-link to="/profile" class="back-link" style="text-decoration: none; color: #475be8; font-weight: 600;">← В профиль</router-link>
+  <div class="orders-page">
+    <div class="header-section">
+      <h1>📦 Мои заказы</h1>
+      <router-link to="/profile" class="back-link">
+        <span class="back-icon">←</span> Вернуться в профиль
+      </router-link>
     </div>
 
     <!-- ТАБЫ (ФИЛЬТРЫ) -->
-    <div class="status-tabs" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 25px; background: #f1f5f9; padding: 5px; border-radius: 12px;">
-      <button v-for="tab in tabs" :key="tab.id" 
-              @click="activeTab = tab.id" 
-              :style="activeTab === tab.id ? { background: '#fff', color: '#475be8', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' } : { color: '#64748b' }"
-              style="border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s;">
+    <div class="status-tabs">
+      <button 
+        v-for="tab in tabs" 
+        :key="tab.id" 
+        @click="activeTab = tab.id" 
+        :class="{ active: activeTab === tab.id }"
+      >
         {{ tab.label }}
       </button>
     </div>
 
-    <div v-if="loading" style="text-align: center; padding: 50px;"><div class="loader"></div></div>
+    <div v-if="loading" class="loader-container">
+      <div class="loader"></div>
+      <p>Загружаем историю...</p>
+    </div>
 
     <div v-else class="orders-list">
-      <div v-if="filteredOrders.length === 0" style="text-align: center; color: #94a3b8; padding: 40px;">
-        Заказов не найдено.
+      <div v-if="filteredOrders.length === 0" class="empty-orders">
+        <div class="empty-icon">📂</div>
+        <p>Заказов в этой категории не найдено.</p>
       </div>
 
-      <div v-for="order in filteredOrders" :key="order.id" class="order-card" 
-           style="background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+      <div v-for="order in filteredOrders" :key="order.id" class="order-card" :class="{ 'cancelled-order': order.delivery_status === 'cancelled' }">
         
-        <!-- Верхняя часть: Номер и Статусы -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-          <div>
-            <span style="font-weight: 800; font-size: 1.1rem; color: #1e293b;">Заказ №{{ order.id }}</span>
-            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">от {{ formatDate(order.created_at) }}</div>
+        <div class="order-header">
+          <div class="order-meta">
+            <span class="order-number">Заказ №{{ order.id }}</span>
+            <span class="order-date">от {{ formatDate(order.created_at) }}</span>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <span :style="getDeliveryStatusStyle(order.delivery_status)" style="padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+          <div class="order-statuses">
+            <span :style="getDeliveryStatusStyle(order.delivery_status)" class="badge">
               {{ translateDelivery(order.delivery_status) }}
             </span>
-            <span :style="getPaymentStatusStyle(order.payment_status)" style="padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; border: 1px solid #e2e8f0;">
+            <span :style="getPaymentStatusStyle(order.payment_status)" class="badge payment-badge">
               {{ translatePaymentStatus(order.payment_status) }}
             </span>
           </div>
         </div>
 
-        <div style="font-size: 0.9rem; color: #475569; margin-bottom: 20px; padding: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #edf2f7;">
-            📍 <b>Пункт выдачи:</b> {{ order.delivery_address }}
+        <div class="order-delivery-info">
+          <span class="pin-icon">📍</span> <b>Пункт выдачи:</b> {{ order.delivery_address }}
         </div>
 
         <!-- БЛОК УПРАВЛЕНИЯ ОПЛАТОЙ -->
-        <div v-if="order.payment_status !== 'paid' && order.delivery_status !== 'cancelled'" 
-             style="background: #fffbeb; border: 1px solid #fef3c7; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-            <div>
-              <label style="font-size: 0.85rem; color: #92400e; font-weight: bold; display: block; margin-bottom: 5px;">Способ оплаты:</label>
-              <!-- ВАЖНО: Выбор метода не пропадает даже если окно закрыто -->
-              <select :value="order.payment_method" @change="changePaymentMethod(order, $event.target.value)" 
-                      style="padding: 8px; border-radius: 6px; border: 1px solid #fcd34d; background: white; cursor: pointer;">
+        <div v-if="order.payment_status !== 'paid' && order.delivery_status !== 'cancelled'" class="management-box">
+          <div class="info-row">
+            <div class="method-select-group">
+              <label>Способ оплаты:</label>
+              <select :value="order.payment_method" @change="changePaymentMethod(order, $event.target.value)" class="modern-select">
                 <option value="card_pickup">Картой при получении</option>
                 <option value="cash">Наличными</option>
-                <option value="card">Картой онлайн (Скидка 2%)</option>
+                <option value="card">Картой онлайн</option>
               </select>
             </div>
             
-            <!-- Кнопка оплаты видна, если метод выбран card и заказ еще не оплачен -->
-            <button v-if="order.payment_method === 'card'" @click="openPaymentModal(order)"
-                    style="background: #475be8; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 700;">
+            <button v-if="order.payment_method === 'card'" @click="openPaymentModal(order)" class="pay-btn">
               💳 Оплатить {{ order.total_price }} ₽
             </button>
           </div>
         </div>
 
-        <!-- Состав заказа (С ВОЗМОЖНОСТЬЮ ПЕРЕХОДА) -->
-        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
-            <div v-for="item in order.order_items" :key="item.id" style="display: flex; align-items: center; gap: 15px;">
-                
-                <router-link :to="'/product/' + item.product_id" style="display: block; position: relative;">
-                  <img :src="item.products?.image_url || '/assets/images/no-photo.png'" 
-                       @error="$event.target.src = '/assets/images/no-photo.png'"
-                       style="width: 50px; height: 50px; object-fit: contain; border: 1px solid #eee; border-radius: 8px;" />
+        <!-- СПИСОК ТОВАРОВ -->
+        <div class="order-items">
+            <div v-for="item in order.order_items" :key="item.id" class="item-row">
+                <router-link :to="'/product/' + item.product_id" class="item-img-link">
+                  <img :src="item.products?.image_url || '/assets/images/no-photo.png'" @error="$event.target.src = '/assets/images/no-photo.png'" />
                 </router-link>
 
-                <div style="flex: 1;">
-                    <router-link :to="'/product/' + item.product_id" style="text-decoration: none;">
-                      <div style="font-weight: 600; font-size: 0.9rem; color: #1e293b; cursor: pointer;">
-                        {{ item.products?.name || 'Товар удален' }}
-                      </div>
+                <div class="item-info">
+                    <router-link :to="'/product/' + item.product_id" class="item-name">
+                      {{ item.products?.name || 'Товар удален' }}
                     </router-link>
-                    <div style="font-size: 0.8rem; color: #64748b;">{{ item.quantity }} шт. × {{ item.unit_price }} ₽</div>
+                    <div class="item-details">{{ item.quantity }} шт. × {{ item.unit_price }} ₽</div>
                 </div>
 
-                <div style="font-weight: 700; color: #1e293b;">{{ item.unit_price * item.quantity }} ₽</div>
+                <div class="item-price">{{ item.unit_price * item.quantity }} ₽</div>
             </div>
         </div>
 
-        <!-- Футер карточки -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 15px;">
-          <div style="font-size: 1.2rem; font-weight: 800;">{{ order.total_price }} ₽</div>
-          
-          <div style="display: flex; gap: 10px;">
-              <button @click="reorder(order)" style="background: #f1f5f9; color: #475569; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600;">Повторить заказ</button>
-              <button v-if="!['delivered', 'cancelled'].includes(order.delivery_status)" @click="cancelOrder(order)" style="background: #fff; color: #ef4444; border: 1px solid #fee2e2; padding: 10px 15px; border-radius: 8px; cursor: pointer;">Отменить</button>
+        <div class="order-footer">
+          <div class="total-sum">Итого: <strong>{{ order.total_price }} ₽</strong></div>
+          <div class="footer-actions">
+            <button @click="reorder(order)" class="reorder-btn">Повторить заказ</button>
+            <button v-if="!['delivered', 'cancelled'].includes(order.delivery_status)" @click="cancelOrder(order)" class="cancel-order-btn">Отменить</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 💳 ОКНО ОПЛАТЫ (С подробной информацией) -->
-    <div v-if="showPaymentModal" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(15,23,42,0.9); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-      <div style="background: white; width: 500px; padding: 30px; border-radius: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.4);">
-        
-        <div v-if="paymentStep === 'form'">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">Оплата заказа №{{ currentOrder.id }}</h2>
-                <button @click="showPaymentModal = false" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
-            </div>
+    <!-- 💳 МОДАЛКА ОПЛАТЫ -->
+    <transition name="fade">
+      <div v-if="showPaymentModal" class="modal-overlay" @click.self="showPaymentModal = false">
+        <div class="modal-content card-shadow">
+          
+          <div v-if="paymentStep === 'form'" class="payment-form">
+              <div class="modal-header">
+                  <h2>ApexDrive <span class="accent">Pay</span></h2>
+                  <button @click="showPaymentModal = false" class="close-btn">&times;</button>
+              </div>
 
-            <!-- ИНФОРМАЦИЯ О ЗАКАЗЕ ВНУТРИ ОПЛАТЫ -->
-            <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #edf2f7; max-height: 150px; overflow-y: auto;">
-                <div v-for="item in currentOrder.order_items" :key="item.id" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                    <img :src="item.products?.image_url" @error="$event.target.src = '/assets/images/no-photo.png'" width="30" height="30" style="object-fit: contain; background: white; border-radius: 4px;" />
-                    <span style="font-size: 0.8rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ item.products?.name }}</span>
-                    <span style="font-weight: bold; font-size: 0.8rem;">x{{ item.quantity }}</span>
-                </div>
-            </div>
+              <!-- СОСТАВ ЗАКАЗА В МОДАЛКЕ -->
+              <div class="modal-order-summary">
+                  <div class="summary-label">ОПЛАТА ЗАКАЗА №{{ currentOrder.id }}</div>
+                  <div class="summary-scroll">
+                      <div v-for="item in currentOrder.order_items" :key="item.id" class="summary-row">
+                          <img :src="item.products?.image_url" @error="$event.target.src = '/assets/images/no-photo.png'" />
+                          <span class="s-name">{{ item.products?.name }}</span>
+                          <span class="s-qty">x{{ item.quantity }}</span>
+                      </div>
+                  </div>
+              </div>
 
-            <!-- ВЫБОР КАРТЫ -->
-            <h4 style="margin-bottom: 10px;">Выберите карту:</h4>
-            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                <div v-for="card in savedCards" :key="card.id" 
-                     @click="selectedCardId = card.id"
-                     :style="{ borderColor: selectedCardId === card.id ? '#475be8' : '#e2e8f0', background: selectedCardId === card.id ? '#f0f2ff' : '#fff' }"
-                     style="border: 2px solid; padding: 12px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: 800;">{{ card.brand }}</div>
-                        <div style="font-family: monospace; font-weight: bold;">{{ card.card_number_masked }}</div>
+              <!-- ВЫБОР КАРТЫ -->
+              <div class="card-selection">
+                  <p class="section-title">Выберите карту:</p>
+                  <div class="cards-grid">
+                      <div v-for="card in savedCards" :key="card.id" 
+                           @click="selectedCardId = card.id"
+                           class="selectable-card"
+                           :class="{ active: selectedCardId === card.id }">
+                          <div class="card-top">
+                              <span class="brand">{{ card.brand }}</span>
+                              <span class="check" v-if="selectedCardId === card.id">✔</span>
+                          </div>
+                          <div class="mask">{{ card.card_number_masked }}</div>
+                      </div>
+
+                      <div @click="selectedCardId = 'new'"
+                           class="selectable-card new-card"
+                           :class="{ active: selectedCardId === 'new' }">
+                           + Другая карта
+                      </div>
+                  </div>
+              </div>
+
+              <!-- ВВОД НОВОЙ КАРТЫ -->
+              <transition name="slide">
+                <div v-if="selectedCardId === 'new'" class="new-card-inputs">
+                    <input v-model="newCardData.number" placeholder="Номер карты (16 цифр)" maxlength="16" class="modern-input" />
+                    <div class="input-row">
+                        <input v-model="newCardData.expiry" placeholder="ММ/ГГ" maxlength="5" class="modern-input" />
+                        <input type="password" placeholder="CVC" maxlength="3" class="modern-input" />
                     </div>
-                    <div v-if="selectedCardId === card.id" style="color: #475be8;">✔</div>
                 </div>
+              </transition>
 
-                <div @click="selectedCardId = 'new'"
-                     :style="{ borderColor: selectedCardId === 'new' ? '#475be8' : '#e2e8f0', background: selectedCardId === 'new' ? '#f0f2ff' : '#fff' }"
-                     style="border: 2px solid; padding: 12px; border-radius: 12px; cursor: pointer; text-align: center; font-weight: 600;">
-                     + Ввести данные новой карты
-                </div>
-            </div>
+              <button @click="confirmPayment" class="confirm-pay-btn">
+                  ОПЛАТИТЬ {{ currentOrder.total_price }} ₽
+              </button>
+          </div>
 
-            <!-- ВВОД НОВОЙ КАРТЫ (Если выбрано 'new') -->
-            <div v-if="selectedCardId === 'new'" style="margin-bottom: 20px; padding: 15px; background: #f1f5f9; border-radius: 12px;">
-                <input v-model="newCardData.number" placeholder="Номер карты (16 цифр)" maxlength="16" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd;" />
-                <div style="display: flex; gap: 10px;">
-                    <input v-model="newCardData.expiry" placeholder="ММ/ГГ" maxlength="5" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #ddd;" />
-                    <input type="password" placeholder="CVC" maxlength="3" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #ddd;" />
-                </div>
-            </div>
+          <div v-if="paymentStep === 'loading'" class="loading-state">
+              <div class="spinner"></div>
+              <h3>Авторизация...</h3>
+              <p>Пожалуйста, не закрывайте страницу</p>
+          </div>
 
-            <button @click="confirmPayment" style="width: 100%; padding: 18px; background: #27ae60; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 1.1rem; box-shadow: 0 10px 15px rgba(39, 174, 96, 0.2);">
-                ОПЛАТИТЬ {{ currentOrder.total_price }} ₽
-            </button>
-        </div>
-
-        <div v-if="paymentStep === 'loading'" style="text-align: center; padding: 40px 0;">
-            <div class="spinner"></div>
-            <h3>Авторизация...</h3>
-        </div>
-
-        <div v-if="paymentStep === 'success'" style="text-align: center; padding: 30px 0;">
-            <div style="width: 80px; height: 80px; background: #f0fdf4; color: #27ae60; font-size: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">✔</div>
-            <h2>Оплата прошла успешно!</h2>
-            <p style="color: #666;">Статус заказа №{{ currentOrder.id }} изменен на "Оплачен".</p>
+          <div v-if="paymentStep === 'success'" class="success-state">
+              <div class="success-icon">✔</div>
+              <h2>Оплачено!</h2>
+              <p>Ваш заказ №{{ currentOrder.id }} принят в работу.</p>
+          </div>
         </div>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -182,7 +186,7 @@ const orders = ref([]);
 const loading = ref(true);
 const activeTab = ref('all');
 
-// Оплата
+// Состояния оплаты
 const showPaymentModal = ref(false);
 const paymentStep = ref('form');
 const currentOrder = ref(null);
@@ -214,19 +218,11 @@ const loadOrders = async () => {
   finally { loading.value = false; }
 };
 
-// СМЕНА СПОСОБА ОПЛАТЫ (С ВЫЗОВОМ ОКНА)
 const changePaymentMethod = async (order, newMethod) => {
     try {
-        // Сохраняем в базу новый метод оплаты
         const res = await axios.patch(`/api/orders/${order.id}`, { payment_method: newMethod });
         order.payment_method = res.data.payment_method;
-        
-        // Если выбрали карту, сразу открываем окно оплаты.
-        // Если окно закроют крестиком, метод все равно останется "card", 
-        // и кнопка "Оплатить" будет ждать следующего нажатия.
-        if (newMethod === 'card') {
-            openPaymentModal(order);
-        }
+        if (newMethod === 'card') openPaymentModal(order);
     } catch (e) { alert("Ошибка изменения метода"); }
 };
 
@@ -244,11 +240,9 @@ const confirmPayment = async () => {
 
     setTimeout(async () => {
         try {
-            // 1. Обновляем статус заказа
             await axios.patch(`/api/orders/${currentOrder.value.id}`, { payment_status: 'paid' });
             currentOrder.value.payment_status = 'paid';
 
-            // 2. Если карта новая — сохраняем ее для будущих покупок
             if (selectedCardId.value === 'new') {
                 await axios.post('/api/cards', {
                     user_id: userId,
@@ -259,27 +253,20 @@ const confirmPayment = async () => {
             }
 
             paymentStep.value = 'success';
-            setTimeout(() => {
-                showPaymentModal.value = false;
-            }, 2000);
+            setTimeout(() => { showPaymentModal.value = false; }, 1500);
 
         } catch (e) {
-            alert("Ошибка при проведении платежа");
+            alert("Ошибка платежа");
             paymentStep.value = 'form';
         }
-    }, 1500);
+    }, 2000);
 };
 
-// Исправленный Reorder (передаем stock_quantity: 999 для обхода блокировки)
 const reorder = (order) => {
   if (!order || !order.order_items) return;
   order.order_items.forEach(item => {
     if (item.products) {
-      cartStore.addToCart({ 
-        ...item.products, 
-        price: item.unit_price, 
-        stock_quantity: 999 
-      });
+      cartStore.addToCart({ ...item.products, price: item.unit_price, stock_quantity: 999 });
     }
   });
   alert('Товары добавлены в корзину.');
@@ -293,12 +280,11 @@ const cancelOrder = async (order) => {
     } catch (e) { alert("Ошибка"); }
 };
 
-// Хелперы
 const formatDate = (d) => new Date(d).toLocaleDateString('ru-RU');
 const translateDelivery = (s) => ({ 'created': 'Обработка', 'shipping': 'В пути', 'awaiting': 'В пункте выдачи', 'delivered': 'Получен', 'cancelled': 'Отменен' }[s]);
 const translatePaymentStatus = (s) => ({ 'paid': 'Оплачен ✅', 'awaiting_payment': 'Ждет оплаты', 'unpaid': 'Не оплачен' }[s] || 'Ожидание');
-const getDeliveryStatusStyle = (s) => s === 'cancelled' ? { background: '#fee2e2', color: '#ef4444' } : s === 'delivered' ? { background: '#d1fae5', color: '#10b981' } : { background: '#eef2ff', color: '#4f46e5' };
-const getPaymentStatusStyle = (s) => s === 'paid' ? { color: '#10b981' } : { color: '#f59e0b' };
+const getDeliveryStatusStyle = (s) => s === 'cancelled' ? { background: 'var(--danger-light)', color: 'var(--danger)' } : s === 'delivered' ? { background: 'var(--success-light)', color: 'var(--success)' } : { background: 'var(--primary-light)', color: 'var(--primary)' };
+const getPaymentStatusStyle = (s) => s === 'paid' ? { color: 'var(--success)' } : { color: 'var(--warning)' };
 
 const filteredOrders = computed(() => {
   if (activeTab.value === 'active') return orders.value.filter(o => !['delivered', 'cancelled'].includes(o.delivery_status));
@@ -311,3 +297,320 @@ const filteredOrders = computed(() => {
 
 onMounted(loadOrders);
 </script>
+
+<style scoped>
+.orders-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.header-section h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+}
+
+.back-link {
+    text-decoration: none;
+    color: var(--primary);
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.back-link:hover {
+    transform: translateX(-5px);
+}
+
+/* ТАБЫ */
+.status-tabs {
+    display: flex;
+    gap: 8px;
+    background: var(--bg-input);
+    padding: 6px;
+    border-radius: var(--radius-md);
+    margin-bottom: 30px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.status-tabs::-webkit-scrollbar { display: none; }
+
+.status-tabs button {
+    white-space: nowrap;
+    border: none;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.status-tabs button.active {
+    background: var(--bg-card);
+    color: var(--primary);
+    box-shadow: var(--shadow-sm);
+}
+
+/* КАРТОЧКА ЗАКАЗА */
+.order-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 25px;
+    margin-bottom: 25px;
+    transition: var(--transition);
+}
+
+.order-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-light);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.order-number {
+    display: block;
+    font-weight: 800;
+    font-size: 1.2rem;
+}
+
+.order-date {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.badge {
+    padding: 6px 14px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-left: 10px;
+}
+
+.order-delivery-info {
+    font-size: 0.95rem;
+    padding: 12px 15px;
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+    color: var(--text-main);
+}
+
+/* УПРАВЛЕНИЕ ОПЛАТОЙ */
+.management-box {
+    background: var(--warning-light);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+body.dark-theme .management-box {
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.method-select-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 5px;
+}
+
+.modern-select {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: white;
+    cursor: pointer;
+}
+
+.pay-btn {
+    background: var(--primary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+/* ТОВАРЫ */
+.item-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.item-row:last-child { border-bottom: none; }
+
+.item-row img {
+    width: 55px; height: 55px;
+    object-fit: contain;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 4px;
+    transition: var(--transition);
+}
+
+.item-row img:hover { transform: scale(1.1); }
+
+.item-name {
+    display: block;
+    font-weight: 600;
+    color: var(--text-main);
+    text-decoration: none;
+    line-height: 1.3;
+}
+
+.item-name:hover { color: var(--primary); }
+
+.item-details {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.item-price {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.order-footer {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.total-sum strong {
+    font-size: 1.5rem;
+    color: var(--text-main);
+}
+
+.footer-actions { display: flex; gap: 10px; }
+
+.reorder-btn {
+    background: var(--bg-input);
+    color: var(--text-main);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.cancel-order-btn {
+    background: var(--danger-light);
+    color: var(--danger);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* МОДАЛКА ОПЛАТЫ */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(10px);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 9999;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    width: 95%; max-width: 500px;
+    border-radius: var(--radius-lg);
+    padding: 30px;
+}
+
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 25px;
+}
+
+.accent { color: var(--primary); }
+
+.modal-order-summary {
+    background: var(--bg-input);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+.summary-label { font-size: 0.7rem; font-weight: 800; color: var(--text-muted); margin-bottom: 10px; }
+.summary-scroll { max-height: 120px; overflow-y: auto; }
+
+.summary-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+
+.summary-row img { width: 30px; height: 30px; background: #fff; border-radius: 5px; }
+
+.card-selection { margin-bottom: 25px; }
+.cards-grid { display: flex; flex-direction: column; gap: 10px; }
+
+.selectable-card {
+    border: 2px solid var(--border-color);
+    padding: 15px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.selectable-card.active {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.new-card { border-style: dashed; text-align: center; font-weight: 700; }
+
+.confirm-pay-btn {
+    width: 100%;
+    padding: 18px;
+    background: var(--success);
+    color: white;
+    border-radius: 12px;
+    font-weight: 800;
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+}
+
+/* АНИМАЦИИ */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+    width: 40px; height: 40px;
+    border: 4px solid var(--border-color);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+/* АДАПТИВНОСТЬ */
+@media (max-width: 768px) {
+    .info-row { flex-direction: column; align-items: stretch; }
+    .order-footer { flex-direction: column; align-items: flex-start; gap: 15px; }
+    .footer-actions { width: 100%; }
+    .footer-actions button { flex: 1; }
+}
+</style>

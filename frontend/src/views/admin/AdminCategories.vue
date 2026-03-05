@@ -1,125 +1,138 @@
 <template>
   <div class="admin-categories">
-    <h1>📂 Управление категориями</h1>
+    <!-- ЗАГОЛОВОК -->
+    <div class="header-row">
+      <div class="header-left">
+        <h1>📂 Управление категориями</h1>
+        <p class="subtitle">Структура каталога и вложенность разделов</p>
+      </div>
+      <div class="stats-badge">
+        Найдено: <b>{{ filteredCategories.length }}</b>
+      </div>
+    </div>
 
     <!-- 1. ФОРМА СОЗДАНИЯ -->
-    <section style="border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 30px; background: #fff; border-radius: 12px; box-shadow: var(--shadow-sm);">
-      <h3 style="margin-top: 0; color: #1e293b;">Создать новую категорию</h3>
-      <form @submit.prevent="createCategory" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-        
-        <input v-model="newCategory.name" placeholder="Название (напр. Двигатель)" required style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;" />
-        <input v-model="newCategory.slug" placeholder="Slug (URL адрес)" required style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;" />
-        
-        <select v-model="newCategory.parent_id" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
-          <option :value="null">-- Корневая (нет родителя) --</option>
-          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-
-        <!-- Загрузка фото -->
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <input type="file" @change="(e) => handleFileUpload(e, 'new')" accept="image/*" style="font-size: 0.8rem;" />
-          <input v-model="newCategory.image_url" placeholder="URL иконки" style="padding: 5px; font-size: 0.8rem;" />
+    <section class="admin-card create-card">
+      <h3 class="card-title">Создать новую категорию</h3>
+      <form @submit.prevent="createCategory" class="admin-form">
+        <div class="input-grid">
+          <div class="input-group">
+            <label>Название</label>
+            <input v-model="newCategory.name" placeholder="Напр. Двигатель" required />
+          </div>
+          <div class="input-group">
+            <label>Slug (URL адрес)</label>
+            <input v-model="newCategory.slug" placeholder="engine" required />
+          </div>
+          <div class="input-group">
+            <label>Родительская категория</label>
+            <select v-model="newCategory.parent_id">
+              <option :value="null">-- Корневая (нет родителя) --</option>
+              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Иконка категории</label>
+            <div class="upload-wrapper">
+              <input type="file" @change="(e) => handleFileUpload(e, 'new')" accept="image/*" class="file-input" />
+              <input v-model="newCategory.image_url" placeholder="Или URL иконки" class="url-input" />
+            </div>
+          </div>
         </div>
-
-        <button type="submit" :disabled="uploading" style="background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-          {{ uploading ? 'Загрузка...' : 'Создать' }}
-        </button>
+        <div class="form-footer">
+          <button type="submit" :disabled="uploading" class="btn-primary">
+            {{ uploading ? 'Загрузка...' : '✨ Создать категорию' }}
+          </button>
+        </div>
       </form>
     </section>
 
-    <hr />
-
     <!-- 2. УМНАЯ ФИЛЬТРАЦИЯ -->
-    <section style="background: #f8fafc; padding: 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid #e2e8f0;">
-      <h3 style="margin-top: 0; font-size: 1rem; color: #64748b;">🔍 Поиск и структура</h3>
-      <div style="display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 15px; align-items: flex-end;">
-        
-        <div>
-          <label style="font-size: 0.8rem; font-weight: bold; color: #475569;">Поиск по названию или Slug:</label>
-          <input v-model="searchQuery" placeholder="Начните вводить..." style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-top: 5px;" />
+    <section class="admin-card filter-section">
+      <div class="filter-grid">
+        <div class="input-group search-group">
+          <label>🔍 Поиск</label>
+          <input v-model="searchQuery" placeholder="Название или Slug..." />
         </div>
 
-        <div>
-          <label style="font-size: 0.8rem; font-weight: bold; color: #475569;">Родительская категория:</label>
-          <select v-model="parentFilter" style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-top: 5px;">
+        <div class="input-group">
+          <label>Фильтр по родителю</label>
+          <select v-model="parentFilter">
             <option value="all">Все (весь список)</option>
             <option :value="null">Только корневые</option>
             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </div>
 
-        <button @click="resetFilters" style="padding: 12px; background: white; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; font-weight: 600;">
-          Сбросить всё
-        </button>
+        <button @click="resetFilters" class="btn-secondary">Сбросить всё</button>
       </div>
     </section>
 
     <!-- 3. ТАБЛИЦА КАТЕГОРИЙ -->
-    <section>
-      <div style="margin-bottom: 10px; color: #94a3b8; font-size: 0.9rem;">
-        Найдено: {{ filteredCategories.length }} | Страница {{ currentPage }} из {{ totalPages || 1 }}
+    <div class="table-container">
+      <div class="table-meta">
+        Страница {{ currentPage }} из {{ totalPages || 1 }}
       </div>
 
-      <table border="1" style="width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
-        <thead>
-          <tr style="background: #f1f5f9; text-align: left;">
-            <th style="padding: 15px;">ID</th>
-            <th>Фото (клик для смены)</th>
-            <th>Название</th>
-            <th>Slug (URL)</th>
-            <th>Вложенность</th>
-            <th style="text-align: center;">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="cat in paginatedCategories" :key="cat.id" style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 15px; color: #94a3b8;">#{{ cat.id }}</td>
-            
-            <td style="padding: 10px; text-align: center;">
-              <div style="position: relative; display: inline-block;">
-                <img :src="cat.image_url || '/assets/images/no-cat.png'" width="50" height="50" style="object-fit: contain; background: #f8fafc; border-radius: 8px; border: 1px solid #eee;" />
-                <input type="file" @change="(e) => handleFileUpload(e, 'edit', cat)" style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" title="Сменить фото" />
-              </div>
-            </td>
+      <div class="admin-table-wrapper">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th class="col-id">ID</th>
+              <th class="col-photo">Фото</th>
+              <th>Название</th>
+              <th>Slug (URL)</th>
+              <th>Вложенность</th>
+              <th class="text-right">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="cat in paginatedCategories" :key="cat.id">
+              <td class="col-id">#{{ cat.id }}</td>
+              
+              <td class="col-photo">
+                <div class="category-img-box" title="Нажмите, чтобы сменить фото">
+                  <img :src="cat.image_url || '/assets/images/no-cat.png'" class="table-img" />
+                  <input type="file" @change="(e) => handleFileUpload(e, 'edit', cat)" class="hidden-file-input" />
+                </div>
+              </td>
 
-            <td>
-              <input v-model="cat.name" @change="updateCategory(cat)" style="width: 90%; font-weight: 800; border: none; padding: 5px;" />
-            </td>
+              <td>
+                <input v-model="cat.name" @change="updateCategory(cat)" class="inline-edit bold" />
+              </td>
 
-            <td>
-              <input v-model="cat.slug" @change="updateCategory(cat)" style="width: 90%; color: #6366f1; border: none; font-family: monospace; font-size: 0.9rem;" />
-            </td>
+              <td>
+                <input v-model="cat.slug" @change="updateCategory(cat)" class="inline-edit slug-text" />
+              </td>
 
-            <td>
-              <select v-model="cat.parent_id" @change="updateCategory(cat)" style="width: 100%; border: none; background: #f8fafc; padding: 5px; border-radius: 4px;">
-                <option :value="null">-- Корневая --</option>
-                <option v-for="c in categories" :key="c.id" :value="c.id" :disabled="c.id === cat.id">
-                  {{ c.name }}
-                </option>
-              </select>
-            </td>
+              <td>
+                <select v-model="cat.parent_id" @change="updateCategory(cat)" class="table-select">
+                  <option :value="null">-- Корневая --</option>
+                  <option v-for="c in categories" :key="c.id" :value="c.id" :disabled="c.id === cat.id">
+                    {{ c.name }}
+                  </option>
+                </select>
+              </td>
 
-            <td style="text-align: center;">
-              <button @click="deleteCategory(cat.id)" style="color: #ef4444; border: none; background: #fff1f2; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">
-                Удалить
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              <td class="text-right">
+                <button @click="deleteCategory(cat.id)" class="btn-delete">Удалить</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- 4. ПАГИНАЦИЯ -->
-      <div v-if="totalPages > 1" style="margin-top: 30px; display: flex; justify-content: center; gap: 8px;">
-        <button @click="currentPage--" :disabled="currentPage === 1" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer;">←</button>
-        <button v-for="p in totalPages" :key="p" @click="currentPage = p" 
-                :style="currentPage === p ? {background: '#4f46e5', color: 'white'} : {}"
-                style="width: 35px; height: 35px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer; font-weight: bold;">
-          {{ p }}
-        </button>
-        <button @click="currentPage++" :disabled="currentPage === totalPages" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer;">→</button>
+      <div v-if="totalPages > 1" class="pagination-wrapper">
+        <button @click="currentPage--" :disabled="currentPage === 1" class="p-btn">←</button>
+        <div class="p-numbers">
+          <button v-for="p in totalPages" :key="p" @click="currentPage = p" :class="{ active: currentPage === p }">
+            {{ p }}
+          </button>
+        </div>
+        <button @click="currentPage++" :disabled="currentPage === totalPages" class="p-btn">→</button>
       </div>
-
-    </section>
+    </div>
   </div>
 </template>
 
@@ -135,7 +148,6 @@ const searchQuery = ref('');
 const parentFilter = ref('all');
 const uploading = ref(false);
 
-// ПАГИНАЦИЯ
 const currentPage = ref(1);
 const itemsPerPage = 20;
 
@@ -145,7 +157,7 @@ const fetchCategories = async () => {
   try {
     const res = await axios.get('/api/admin/categories', config);
     categories.value = res.data;
-  } catch (e) { alert('Ошибка загрузки'); }
+  } catch (e) { console.error('Ошибка загрузки'); }
 };
 
 const resetFilters = () => {
@@ -154,47 +166,30 @@ const resetFilters = () => {
   currentPage.value = 1;
 };
 
-// --- ЗАГРУЗКА ФОТО ---
 const handleFileUpload = async (event, mode, target = null) => {
   const file = event.target.files[0];
   if (!file) return;
-
   const formData = new FormData();
   formData.append('file', file);
   uploading.value = true;
-
   try {
     const res = await axios.post('/api/upload/categories', formData);
-    if (mode === 'new') {
-      newCategory.image_url = res.data.url;
-    } else {
-      target.image_url = res.data.url;
-      await updateCategory(target);
-    }
-  } catch (e) {
-    alert('Ошибка загрузки файла');
-  } finally {
-    uploading.value = false;
-  }
+    if (mode === 'new') newCategory.image_url = res.data.url;
+    else { target.image_url = res.data.url; await updateCategory(target); }
+  } catch (e) { alert('Ошибка загрузки'); } 
+  finally { uploading.value = false; }
 };
 
-// --- ФИЛЬТРАЦИЯ ---
 const filteredCategories = computed(() => {
   let res = [...categories.value];
-
-  if (parentFilter.value !== 'all') {
-    res = res.filter(c => c.parent_id === parentFilter.value);
-  }
-
+  if (parentFilter.value !== 'all') res = res.filter(c => c.parent_id === parentFilter.value);
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim();
     res = res.filter(c => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q));
   }
-
   return res;
 });
 
-// --- ЛОГИКА ПАГИНАЦИИ ---
 const totalPages = computed(() => Math.ceil(filteredCategories.value.length / itemsPerPage));
 const paginatedCategories = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
@@ -203,13 +198,12 @@ const paginatedCategories = computed(() => {
 
 watch([searchQuery, parentFilter], () => currentPage.value = 1);
 
-// --- CRUD ---
 const createCategory = async () => {
   try {
     const res = await axios.post('/api/admin/categories', newCategory, config);
     categories.value.unshift(res.data);
-    alert('Создана');
     Object.assign(newCategory, { name: '', slug: '', parent_id: null, image_url: '' });
+    alert('Категория создана');
   } catch (e) { alert('Ошибка создания'); }
 };
 
@@ -227,3 +221,92 @@ const deleteCategory = async (id) => {
 
 onMounted(fetchCategories);
 </script>
+
+<style scoped>
+.admin-categories {
+  padding: 40px 20px;
+  animation: fadeIn 0.4s ease-out;
+  color: var(--text-main);
+}
+
+/* ШАПКА */
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+h1 { font-size: 2.2rem; font-weight: 800; margin: 0; }
+.subtitle { color: var(--text-muted); margin-top: 5px; }
+.stats-badge { background: var(--primary-light); color: var(--primary); padding: 10px 20px; border-radius: 50px; font-weight: 700; }
+
+/* КАРТОЧКИ */
+.admin-card {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 30px;
+}
+
+.card-title { margin-top: 0; margin-bottom: 25px; font-size: 1.25rem; font-weight: 700; }
+
+/* ФОРМЫ И ИНПУТЫ */
+.admin-form input, .admin-form select, .filter-section input, .filter-section select {
+  width: 100%; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);
+  background-color: var(--bg-input) !important; color: var(--text-main) !important; transition: all 0.2s;
+}
+
+.input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
+.input-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted) !important; margin-bottom: 8px; text-transform: uppercase; }
+
+.upload-wrapper { display: flex; flex-direction: column; gap: 8px; }
+.file-input { font-size: 0.75rem; border: none !important; padding: 0 !important; background: transparent !important; }
+.url-input { padding: 8px 12px !important; font-size: 0.8rem !important; }
+
+/* КНОПКИ */
+.btn-primary { background-color: var(--primary); color: #fff !important; padding: 14px 30px; border-radius: var(--radius-md); font-weight: 700; border: none; cursor: pointer; transition: 0.2s; }
+.btn-primary:hover { transform: translateY(-2px); background-color: var(--primary-hover); }
+
+.btn-secondary { padding: 12px 20px; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; color: var(--text-main); font-weight: 600; }
+
+.btn-delete { background-color: var(--danger-light); color: var(--danger) !important; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.btn-delete:hover { background-color: var(--danger); color: #fff !important; }
+
+/* ФИЛЬТРЫ */
+.filter-section { background-color: var(--bg-input) !important; border-style: dashed !important; }
+.filter-grid { display: grid; grid-template-columns: 2fr 1.5fr auto; gap: 20px; align-items: flex-end; }
+
+/* ТАБЛИЦА */
+.table-meta { margin-bottom: 10px; font-size: 0.85rem; color: var(--text-muted); }
+.admin-table-wrapper { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th { background-color: var(--bg-input) !important; padding: 18px 20px; text-align: left; font-size: 0.75rem; color: var(--text-muted) !important; border-bottom: 2px solid var(--border-color); text-transform: uppercase; }
+.admin-table td { padding: 15px 20px; border-bottom: 1px solid var(--border-color); color: var(--text-main) !important; vertical-align: middle; }
+
+/* ДЕТАЛИ В ТАБЛИЦЕ */
+.col-id { color: var(--text-muted) !important; font-family: monospace; width: 80px; }
+.col-photo { width: 100px; text-align: center; }
+
+.category-img-box { position: relative; width: 60px; height: 60px; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); display: inline-block; padding: 5px; }
+.table-img { width: 100%; height: 100%; object-fit: contain; }
+.hidden-file-input { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+
+.inline-edit { background: transparent; border: 1px solid transparent; padding: 6px 10px; border-radius: 6px; color: var(--text-main) !important; width: 100%; }
+.inline-edit:hover { background: var(--bg-input); border-color: var(--border-color); }
+.inline-edit:focus { background: var(--bg-card); border-color: var(--primary); outline: none; }
+.bold { font-weight: 700; }
+.slug-text { font-family: monospace; color: var(--primary) !important; }
+
+.table-select { background: transparent !important; border: none !important; width: 100%; font-size: 0.9rem; cursor: pointer; padding: 5px !important; }
+
+/* ПАГИНАЦИЯ */
+.pagination-wrapper { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 40px; }
+.p-btn { padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-main); cursor: pointer; }
+.p-numbers { display: flex; gap: 8px; }
+.p-numbers button { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-main); cursor: pointer; font-weight: 700; }
+.p-numbers button.active { background-color: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ТЕМНАЯ ТЕМА ФОРС */
+:deep(body.dark-theme) .admin-card { background-color: #1e293b !important; }
+:deep(body.dark-theme) .inline-edit { color: var(--text-main) !important; }
+:deep(body.dark-theme) .table-select option { background-color: var(--bg-card); color: var(--text-main); }
+
+.text-right { text-align: right; }
+</style>

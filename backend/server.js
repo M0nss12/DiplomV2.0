@@ -91,7 +91,6 @@ const logError = (err, req = null) => {
     });
 };
 
-// Middleware логирования всех POST/PUT/DELETE действий
 app.use((req, res, next) => {
     if (req.url.startsWith('/api') && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
         res.on('finish', () => {
@@ -104,7 +103,7 @@ app.use((req, res, next) => {
 });
 
 // =====================================================================
-// 🛡️ БЛОК: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 🛡️ БЛОК: УТИЛИТЫ
 // =====================================================================
 async function getYandexCoordinates(address) {
     if (!YANDEX_API_KEY) return null;
@@ -118,20 +117,21 @@ async function getYandexCoordinates(address) {
 }
 
 const verifyAdmin = (req, res, next) => {
-    if (req.headers['x-admin-key'] === ADMIN_SECRET) next();
-    else res.status(403).json({ error: 'Доступ запрещен. Нужен ключ админа.' });
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey === ADMIN_SECRET) next();
+    else res.status(403).json({ error: 'Доступ запрещен.' });
 };
 
-// Функция генерации токена Тинькофф
 function generateTinkoffToken(params) {
     const { Token, ...data } = params;
     data.Password = TINKOFF_SECRET;
-    const sortedValues = Object.keys(data).sort().map(key => data[key]).join('');
-    return crypto.createHash('sha256').update(sortedValues).digest('hex');
+    const sortedKeys = Object.keys(data).sort();
+    const concatenatedValues = sortedKeys.reduce((acc, key) => acc + data[key], '');
+    return crypto.createHash('sha256').update(concatenatedValues).digest('hex');
 }
 
 // =====================================================================
-// 🖼️ ОБЩИЙ ФУНКЦИОНАЛ (ФАЙЛЫ)
+// 🖼️ API: ФАЙЛЫ
 // =====================================================================
 app.post('/api/upload/:folder', upload.single('file'), async (req, res) => {
     try {
@@ -146,8 +146,23 @@ app.post('/api/upload/:folder', upload.single('file'), async (req, res) => {
 });
 
 // =====================================================================
-// 🏠 БЛОК: МАРКЕТИНГ (НОВОСТИ, БРЕНДЫ, КАТЕГОРИИ)
+// 🏠 API: МАРКЕТИНГ
 // =====================================================================
+app.get('/api/marketing/currency', async (req, res) => {
+    try {
+        const cbrRes = await axios.get('https://www.cbr-xml-daily.ru/daily_json.js');
+        const valutes = cbrRes.data.Valute;
+        res.json({
+            usd: valutes.USD.Value.toFixed(2),
+            eur: valutes.EUR.Value.toFixed(2),
+            cny: valutes.CNY.Value.toFixed(2)
+        });
+    } catch (e) {
+        logError(e, req);
+        res.json({ usd: '91.50', eur: '99.20', cny: '12.60' });
+    }
+});
+
 app.get('/api/marketing/news', async (req, res) => {
     const { city } = req.query;
     if (!NEWS_API_KEY) return res.json([]);
@@ -197,7 +212,7 @@ app.post('/api/feedback/send', async (req, res) => {
 });
 
 // =====================================================================
-// 🛒 БЛОК: КАТАЛОГ И ПОИСК
+// 🛒 API: КАТАЛОГ И ПОИСК
 // =====================================================================
 app.get('/api/categories', async (req, res) => {
     const { data, error } = await supabase.from('categories').select('*').order('id');
@@ -234,30 +249,30 @@ app.get('/api/products/:id', async (req, res) => {
 app.post('/api/products/recent', async (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) return res.json([]);
-    const { data, error } = await supabase.from('products').select('id, name, price, discount_price, image_url').in('id', ids);
+    const { data, error } = await supabase.from('products').select(`id, name, price, discount_price, image_url, product_stocks (quantity, warehouses (city_name))`).in('id', ids);
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
 
 // =====================================================================
-// 👤 БЛОК: ПОЛЬЗОВАТЕЛИ, ПРОФИЛЬ, КАРТЫ
+// 👤 API: ПРОФИЛЬ, КАРТЫ, ИЗБРАННОЕ
 // =====================================================================
 app.post('/api/users/register', async (req, res) => {
     try {
         const { email, phone, password, first_name, last_name, otchestvo, city } = req.body;
-        if (!first_name || !last_name || !otchestvo) return res.status(400).json({ error: 'Заполните ФИО полностью' });
+        // 1. ГЕНЕРАЦИЯ СТРОКОВОГО ID
+        const newUserId = Date.now().toString(); 
         
         let filter = email ? `email.eq.${email}` : `phone_number.eq.${phone}`;
         const { data: existing } = await supabase.from('users').select('*').or(filter).limit(1).single();
 
         if (existing && !existing.password_hash) {
             const { data } = await supabase.from('users').update({ password_hash: password, role: 'user', first_name, last_name, otchestvo, saved_address: city }).eq('id', existing.id).select();
-            logActivity(req, 'REGISTER', `Обновлен профиль гостя`);
             return res.json(data[0]);
         }
-        const { data, error } = await supabase.from('users').insert([{ role: 'user', email, phone_number: phone, password_hash: password, first_name, last_name, otchestvo, saved_address: city, avatar_url: DEFAULT_AVATARS[0] }]).select();
+        // 2. ИСПОЛЬЗОВАНИЕ СТРОКОВОГО ID ПРИ ВКЛАДКЕ
+        const { data, error } = await supabase.from('users').insert([{ id: newUserId, role: 'user', email, phone_number: phone, password_hash: password, first_name, last_name, otchestvo, saved_address: city, avatar_url: DEFAULT_AVATARS[0] }]).select();
         if (error) throw error;
-        logActivity(req, 'REGISTER', `Новый пользователь создан`);
         res.json(data[0]);
     } catch (e) { logError(e, req); res.status(500).json({ error: e.message }); }
 });
@@ -265,27 +280,26 @@ app.post('/api/users/register', async (req, res) => {
 app.post('/api/users/login', async (req, res) => {
     const { login, password } = req.body;
     const { data } = await supabase.from('users').select('*').or(`email.eq.${login},phone_number.eq.${login}`).eq('password_hash', password).single();
-    if (!data) {
-        logActivity(req, 'LOGIN_FAILED', `Ошибка входа: ${login}`);
-        return res.status(401).json({ error: 'Неверные данные' });
-    }
-    logActivity(req, 'LOGIN_SUCCESS', `Вход выполнен`);
+    if (!data) return res.status(401).json({ error: 'Неверные данные' });
     res.json(data);
 });
 
 app.get('/api/users/profile/:id', async (req, res) => {
+    // УБРАН parseInt
     const { data, error } = await supabase.from('users').select('*').eq('id', req.params.id).single();
     if (error) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(data);
 });
 
 app.put('/api/users/profile/:id', async (req, res) => {
+    // УБРАН parseInt
     const { data, error } = await supabase.from('users').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
 app.post('/api/users/change-password/:id', async (req, res) => {
+    // УБРАН parseInt
     const { oldPassword, newPassword } = req.body;
     const { data: user } = await supabase.from('users').select('password_hash').eq('id', req.params.id).single();
     if (user.password_hash !== oldPassword) return res.status(400).json({ error: 'Пароль неверный' });
@@ -295,6 +309,7 @@ app.post('/api/users/change-password/:id', async (req, res) => {
 
 // КАРТЫ ПОЛЬЗОВАТЕЛЯ
 app.get('/api/cards/:userId', async (req, res) => {
+    // УБРАН parseInt
     const { data, error } = await supabase.from('user_cards').select('*').eq('user_id', req.params.userId).order('is_default', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data || []);
@@ -319,6 +334,7 @@ app.delete('/api/cards/:id', async (req, res) => {
 
 // ИЗБРАННОЕ
 app.get('/api/wishlist/:userId', async (req, res) => {
+    // УБРАН parseInt
     const { data, error } = await supabase.from('wishlists').select(`id, product_id, products (*, product_stocks (*, warehouses (*)))`).eq('user_id', req.params.userId);
     if (error) return res.status(500).json({ error: error.message });
     res.json(data || []);
@@ -334,6 +350,7 @@ app.post('/api/wishlist', async (req, res) => {
 });
 
 app.delete('/api/wishlist/:userId/:prodId', async (req, res) => {
+    // УБРАН parseInt
     await supabase.from('wishlists').delete().eq('user_id', req.params.userId).eq('product_id', req.params.prodId);
     res.send('ok');
 });
@@ -347,7 +364,7 @@ app.get('/api/users/default-avatars', (req, res) => res.json(DEFAULT_AVATARS));
 app.get('/api/vehicles/:userId', async (req, res) => res.json([]));
 
 // =====================================================================
-// 🛍️ БЛОК: ЗАКАЗЫ И ОПЛАТА
+// 🛍️ API: ЗАКАЗЫ И ОПЛАТА
 // =====================================================================
 app.get('/api/orders/test-geo', async (req, res) => {
     const { address } = req.query;
@@ -363,30 +380,27 @@ app.get('/api/orders/test-geo', async (req, res) => {
 });
 
 app.get('/api/orders/:userId', async (req, res) => {
+    // УБРАН parseInt
     const { data, error } = await supabase.from('orders').select(`*, order_items (*, products (name, image_url))`).eq('user_id', req.params.userId).order('created_at', { ascending: false });
     if (error) return res.json([]);
     res.json(data || []);
 });
 
 app.post('/api/orders', async (req, res) => {
-    // ДОБАВЛЕН shipping_cost
     const { customer_name, customer_email, customer_phone, customer_city, items, warehouse_id, payment_method, payment_status: bodyStatus, shipping_cost } = req.body;
-    
     try {
         const { data: allWarehouses } = await supabase.from('warehouses').select('*');
         const selectedWarehouse = allWarehouses.find(w => w.id === warehouse_id);
         if (!selectedWarehouse) return res.status(400).json({ error: 'Пункт выдачи не найден' });
 
-        let finalStatus = bodyStatus;
-        if (!finalStatus) {
-            finalStatus = (payment_method === 'card') ? 'awaiting_payment' : 'unpaid';
-        }
+        let finalStatus = bodyStatus || ((payment_method === 'card') ? 'awaiting_payment' : 'unpaid');
 
         let filter = customer_email ? `email.eq.${customer_email}` : `phone_number.eq.${customer_phone}`;
         let { data: user } = await supabase.from('users').select('id').or(filter).maybeSingle();
         let userId = user?.id;
         if (!userId) {
-            const { data: newUser } = await supabase.from('users').insert([{ role: 'guest', first_name: customer_name, email: customer_email || null, phone_number: customer_phone || null, avatar_url: DEFAULT_AVATARS[0], saved_address: customer_city }]).select();
+            const newId = Date.now().toString();
+            const { data: newUser } = await supabase.from('users').insert([{ id: newId, role: 'guest', first_name: customer_name, email: customer_email || null, phone_number: customer_phone || null, avatar_url: DEFAULT_AVATARS[0], saved_address: customer_city }]).select();
             userId = newUser[0].id;
         }
 
@@ -394,17 +408,25 @@ app.post('/api/orders', async (req, res) => {
         let itemsData = []; 
         let needsShippingToPVZ = false; 
 
-        // Рассчитываем только стоимость самих товаров (БЕЗ ДОСТАВКИ)
         for (let item of items) {
             const { data: p } = await supabase.from('products').select('*, product_stocks(*)').eq('id', item.product_id).single();
             if (!p) continue;
-            
             const currentPrice = p.discount_price || p.price;
             totalPrice += currentPrice * item.quantity;
             itemsData.push({ product_id: p.id, quantity: item.quantity, unit_price: currentPrice });
+            
+            // --- ПРОВЕРКА МЕЖГОРОДА (ИСПРАВЛЕНО) ---
+            // Считаем общий остаток этого товара во ВСЕМ городе выбранного ПВЗ
+            const totalInCity = p.product_stocks.reduce((acc, stockRecord) => {
+                const wh = allWarehouses.find(w => w.id === stockRecord.warehouse_id);
+                if (wh && wh.city_name.toLowerCase() === selectedWarehouse.city_name.toLowerCase()) {
+                    return acc + stockRecord.quantity;
+                }
+                return acc;
+            }, 0);
 
-            const stockInThisPVZ = p.product_stocks.find(s => s.warehouse_id === warehouse_id);
-            if (!stockInThisPVZ || stockInThisPVZ.quantity < item.quantity) needsShippingToPVZ = true;
+            // Если в городе суммарно меньше, чем заказал юзер - значит везем из другого города
+            if (totalInCity < item.quantity) needsShippingToPVZ = true;
 
             // Списание остатков
             let amountNeeded = item.quantity;
@@ -418,55 +440,35 @@ app.post('/api/orders', async (req, res) => {
             }
         }
 
-        // БЕРЕМ СТОИМОСТЬ ДОСТАВКИ С ФРОНТА ИЛИ СТАВИМ 0
         const finalShippingCost = Number(shipping_cost) || 0;
-        
-        // ИТОГОВАЯ ЦЕНА = ТОВАРЫ + ДОСТАВКА
         const finalTotalPrice = Math.round(totalPrice + finalShippingCost);
 
         const { data: order, error: oErr } = await supabase.from('orders').insert([{ 
-            user_id: userId, 
-            payment_method, 
-            payment_status: finalStatus, 
-            delivery_type: 'pickup', 
-            delivery_status: needsShippingToPVZ ? 'shipping' : 'awaiting', 
-            shipping_cost: finalShippingCost, 
-            total_price: finalTotalPrice, 
+            user_id: userId, payment_method, payment_status: finalStatus, 
+            delivery_type: 'pickup', delivery_status: needsShippingToPVZ ? 'shipping' : 'awaiting', 
+            shipping_cost: finalShippingCost, total_price: finalTotalPrice, 
             delivery_address: `${selectedWarehouse.city_name}, ${selectedWarehouse.address}`, 
             created_at: new Date().toISOString() 
         }]).select();
 
         if (oErr) throw oErr;
         await supabase.from('order_items').insert(itemsData.map(i => ({ ...i, order_id: order[0].id })));
-
-        logActivity(req, 'ORDER_CREATED', `Заказ #${order[0].id} на сумму ${finalTotalPrice} ₽ (Доставка: ${finalShippingCost} ₽)`);
-        
         res.json({ orderId: order[0].id, total: finalTotalPrice });
-    } catch (err) { 
-        logError(err, req); 
-        res.status(500).json({ error: 'Ошибка сервера' }); 
-    }
+    } catch (err) { logError(err, req); res.status(500).json({ error: 'Ошибка сервера' }); }
 });
 
 app.patch('/api/orders/:id', async (req, res) => {
     try {
         const { data, error } = await supabase.from('orders').update(req.body).eq('id', req.params.id).select();
-        if (error) throw error;
         res.json(data[0]);
     } catch (e) { logError(e, req); res.status(500).json({ error: e.message }); }
 });
 
-// ИНТЕГРАЦИЯ ТИНЬКОФФ
+// ТИНЬКОФФ
 app.post('/api/payment/tinkoff-init', async (req, res) => {
     try {
         const { amount, orderId, customerEmail } = req.body;
-        const payload = {
-            TerminalKey: TINKOFF_TERMINAL,
-            Amount: amount * 100,
-            OrderId: orderId.toString(),
-            Description: `Оплата в ApexDrive, заказ №${orderId}`,
-            DATA: { Email: customerEmail }
-        };
+        const payload = { TerminalKey: TINKOFF_TERMINAL, Amount: amount * 100, OrderId: orderId.toString(), Description: `Оплата в ApexDrive, заказ №${orderId}`, DATA: { Email: customerEmail } };
         payload.Token = generateTinkoffToken(payload);
         const response = await axios.post('https://rest-api-test.tinkoff.ru/v2/Init', payload);
         if (response.data.Success) res.json({ confirmation_url: response.data.PaymentURL });
@@ -475,7 +477,36 @@ app.post('/api/payment/tinkoff-init', async (req, res) => {
 });
 
 // =====================================================================
-// 👑 БЛОК: ADMIN API
+// 💬 API: ОТЗЫВЫ
+// =====================================================================
+app.get('/api/reviews/:productId', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('reviews').select(`*, users (first_name, avatar_url)`).eq('product_id', req.params.productId).eq('is_approved', true).order('created_at', { ascending: false });
+        if (error) throw error;
+        res.json(data || []);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/reviews', async (req, res) => {
+    try {
+        const { product_id, user_id, rating, comment, pros, cons } = req.body;
+        const { data, error } = await supabase.from('reviews').insert([{ product_id, user_id, rating, comment, pros, cons, is_approved: true, created_at: new Date().toISOString() }]).select();
+        if (error) throw error;
+        res.json(data[0]);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/reviews/:id', async (req, res) => {
+    try {
+        const { rating, comment, pros, cons } = req.body;
+        const { data, error } = await supabase.from('reviews').update({ rating, comment, pros, cons, created_at: new Date().toISOString() }).eq('id', req.params.id).select();
+        if (error) throw error;
+        res.json(data[0]);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// =====================================================================
+// 👑 API: АДМИНКА
 // =====================================================================
 app.get('/api/admin/system/logs', verifyAdmin, (req, res) => {
     const { type } = req.query;
@@ -514,93 +545,8 @@ app.delete('/api/admin/:table/:id', verifyAdmin, async (req, res) => {
     res.send('Удалено');
 });
 
-
-
 // =====================================================================
-// 💬 БЛОК: ОТЗЫВЫ (ИСПРАВЛЕНО)
-// =====================================================================
-
-// 1. Получить отзывы для конкретного товара (С именами и аватарками)
-app.get('/api/reviews/:productId', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('reviews')
-            .select(`
-                *,
-                users (
-                    first_name,
-                    avatar_url
-                )
-            `) // ВАЖНО: подтягиваем данные из таблицы users
-            .eq('product_id', req.params.productId)
-            .eq('is_approved', true)
-            .order('id', { ascending: false }); // Новые сверху
-
-        if (error) throw error;
-        res.json(data || []);
-    } catch (e) {
-        logError(e, req);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// 2. Опубликовать отзыв (Исправление 404)
-app.post('/api/reviews', async (req, res) => {
-    try {
-        const { product_id, user_id, rating, comment, pros, cons, is_approved } = req.body;
-        
-        const { data, error } = await supabase
-            .from('reviews')
-            .insert([{ 
-                product_id, 
-                user_id, 
-                rating, 
-                comment, 
-                pros, 
-                cons, 
-                is_approved: is_approved || true,
-                created_at: new Date().toISOString() // Добавляем дату вручную на всякий случай
-            }])
-            .select();
-
-        if (error) throw error;
-        res.json(data[0]);
-    } catch (e) {
-        logError(e, req);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-
-
-
-// Обновить существующий отзыв (для пользователя)
-app.patch('/api/reviews/:id', async (req, res) => {
-    try {
-        const { rating, comment, pros, cons } = req.body;
-        const { data, error } = await supabase
-            .from('reviews')
-            .update({ 
-                rating, 
-                comment, 
-                pros, 
-                cons,
-                created_at: new Date().toISOString() // Обновляем дату при редактировании
-            })
-            .eq('id', req.params.id)
-            .select();
-
-        if (error) throw error;
-        res.json(data[0]);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-
-
-// =====================================================================
-// 🚨 ФИНАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК И ЗАПУСК
+// 🚨 ГЛОБАЛЬНЫЙ ОБРАБОТЧИК
 // =====================================================================
 app.use((err, req, res, next) => {
     logError(err, req);
@@ -609,6 +555,4 @@ app.use((err, req, res, next) => {
 
 app.get(/(.*)/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () => {
-    console.log(`🚀 ApexDrive Server Active: http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 ApexDrive Server Active: http://localhost:${PORT}`));

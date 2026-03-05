@@ -55,30 +55,23 @@
       </div>
       
       <div v-if="loadingCards">Загрузка карт...</div>
-      
       <div v-else-if="cards.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
         <div v-for="card in cards" :key="card.id" style="border: 2px solid #f1f5f9; padding: 20px; border-radius: 15px; position: relative; background: #fff;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <span style="font-weight: 800; text-transform: uppercase; color: #475be8;">{{ card.brand }}</span>
             <button @click="removeCard(card.id)" style="background: none; border: none; color: #ccc; cursor: pointer; font-size: 1.2rem;">&times;</button>
           </div>
-          
           <div style="font-family: monospace; font-size: 1.2rem; letter-spacing: 2px; margin-bottom: 10px;">
             {{ card.card_number_masked }}
           </div>
-          
           <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8;">
             <span>{{ card.card_holder }}</span>
             <span>{{ card.expiry_date }}</span>
           </div>
-          
           <div v-if="card.is_default" style="margin-top: 10px; font-size: 10px; color: green; font-weight: bold;">● ИСПОЛЬЗУЕТСЯ ПО УМОЛЧАНИЮ</div>
         </div>
       </div>
-      
-      <div v-else style="color: #999; padding: 10px 0;">
-        У вас нет сохраненных карт.
-      </div>
+      <div v-else style="color: #999; padding: 10px 0;">У вас нет сохраненных карт.</div>
     </section>
 
     <br />
@@ -95,7 +88,7 @@
 
         <div v-if="loadingOrders">Загрузка заказов...</div>
         <div v-else-if="Array.isArray(orders) && orders.length > 0">
-          <!-- ИСПРАВЛЕНИЕ 1: Ограничение до 6 заказов -->
+          <!-- ОГРАНИЧЕНИЕ: .slice(0, 6) для показа только последних 6 заказов -->
           <div v-for="o in orders.slice(0, 6)" :key="o.id" style="padding: 20px 0; border-bottom: 1px solid #f5f5f5;">
              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <div>
@@ -117,17 +110,19 @@
                 </div>
              </div>
 
-             <!-- ИСПРАВЛЕНИЕ 2: Вывод названий товаров и кликабельность -->
+             <!-- СПИСОК ТОВАРОВ В ЗАКАЗЕ -->
              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
                 <div v-for="item in o.order_items" :key="item.id" style="display: flex; align-items: center; gap: 15px;">
+                    <!-- Переход к детальному просмотру через картинку -->
                     <router-link :to="'/product/' + item.product_id" style="position: relative; display: block;">
-                        <img :src="item.products?.image_url" width="50" height="50" style="object-fit: contain; border: 1px solid #eee; border-radius: 6px; padding: 2px; background: white;" :title="item.products?.name" />
+                        <img :src="item.products?.image_url" width="50" height="50" style="object-fit: contain; border: 1px solid #eee; border-radius: 6px; padding: 2px; background: white;" />
                         <span v-if="item.quantity > 1" style="position: absolute; bottom: -5px; right: -5px; background: #333; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px;">
                             x{{ item.quantity }}
                         </span>
                     </router-link>
                     
                     <div style="flex: 1;">
+                        <!-- Название товара кликабельно -->
                         <router-link :to="'/product/' + item.product_id" style="text-decoration: none; color: #1e293b; font-weight: 500; font-size: 0.95em;">
                             {{ item.products?.name || 'Товар недоступен' }}
                         </router-link>
@@ -141,10 +136,10 @@
              </div>
           </div>
         </div>
-        <div v-else>Заказов пока нет</div>
+        <div v-else style="padding: 20px; color: #999;">Заказов пока нет</div>
       </div>
 
-      <!-- НЕДАВНО ПРОСМОТРЕННОЕ (Правая часть) -->
+      <!-- НЕДАВНО ПРОСМОТРЕННОЕ -->
       <div style="flex: 1; border: 1px solid #eee; padding: 20px; border-radius: 10px; max-height: 550px; display: flex; flex-direction: column;">
         <h3 style="margin: 0 0 15px 0;">👁️ Недавно смотрели ({{ recentProducts.length }})</h3>
         <div style="flex: 1; overflow-y: auto; padding-right: 10px;">
@@ -160,41 +155,23 @@
               <button @click="removeFromRecent(p.id)" style="border:none; background:none; cursor:pointer; color:#ccc; font-size: 1.2em;">&times;</button>
             </div>
           </div>
+          <div v-else style="text-align: center; color: #999; padding: 20px;">История пуста</div>
         </div>
       </div>
     </div>
 
-    <!-- ВЫСКАКИВАЮЩЕЕ ОКНО (MODAL) ДОБАВЛЕНИЯ КАРТЫ -->
+    <!-- МОДАЛКА ДОБАВЛЕНИЯ КАРТЫ -->
     <div v-if="isAddCardModalOpen" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-      <div style="background: white; padding: 30px; border-radius: 20px; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-        <h3 style="margin-top: 0;">Добавить новую карту</h3>
-        
+      <div style="background: white; padding: 30px; border-radius: 20px; width: 400px;">
+        <h3>Добавить новую карту</h3>
         <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-          <div>
-            <label style="font-size: 0.8rem; color: #888;">Номер карты</label>
-            <input v-model="newCard.number" placeholder="0000 0000 0000 0000" maxlength="16" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
-          </div>
-          
-          <div>
-            <label style="font-size: 0.8rem; color: #888;">Владелец (LATIN)</label>
-            <input v-model="newCard.holder" placeholder="IVAN IVANOV" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; text-transform: uppercase;" />
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div>
-              <label style="font-size: 0.8rem; color: #888;">Срок действия</label>
-              <input v-model="newCard.expiry" placeholder="12/27" maxlength="5" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
-            </div>
-            <div>
-              <label style="font-size: 0.8rem; color: #888;">CVV</label>
-              <input type="password" placeholder="***" maxlength="3" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
-            </div>
-          </div>
+          <input v-model="newCard.number" placeholder="Номер карты" maxlength="16" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
+          <input v-model="newCard.holder" placeholder="Имя владельца (IVAN IVANOV)" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; text-transform: uppercase;" />
+          <input v-model="newCard.expiry" placeholder="ММ/ГГ" maxlength="5" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
         </div>
-
         <div style="display: flex; gap: 10px; margin-top: 25px;">
-          <button @click="saveCard" style="flex: 2; padding: 12px; background: #475be8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">Сохранить карту</button>
-          <button @click="isAddCardModalOpen = false" style="flex: 1; padding: 12px; background: #f1f5f9; color: #64748b; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+          <button @click="saveCard" style="flex: 2; padding: 12px; background: #475be8; color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+          <button @click="isAddCardModalOpen = false" style="flex: 1; padding: 12px; background: #eee; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
         </div>
       </div>
     </div>
@@ -205,6 +182,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
 import axios from 'axios';
+import { supabase } from '@/supabase';
 
 const user = ref(null);
 const orders = ref([]);
@@ -214,59 +192,27 @@ const wishlistCount = ref(0);
 const loadingOrders = ref(true);
 const loadingCards = ref(true);
 
-// Состояние модального окна
 const isAddCardModalOpen = ref(false);
-const newCard = reactive({
-  number: '',
-  holder: '',
-  expiry: ''
-});
+const newCard = reactive({ number: '', holder: '', expiry: '' });
 
-// --- СОХРАНЕНИЕ КАРТЫ ---
-const saveCard = async () => {
-    if (newCard.number.length < 16) return alert("Введите корректный номер карты");
-    if (!newCard.holder || !newCard.expiry) return alert("Заполните все поля");
-
-    try {
-        const userId = localStorage.getItem('user_id');
-        const res = await axios.post('/api/cards', {
-            user_id: userId,
-            number: newCard.number,
-            holder: newCard.holder,
-            expiry: newCard.expiry
-        });
-        
-        cards.value.push(res.data);
-        isAddCardModalOpen.value = false;
-        newCard.number = ''; newCard.holder = ''; newCard.expiry = '';
-        alert("Карта успешно сохранена");
-    } catch (e) {
-        alert("Ошибка при сохранении карты");
-    }
-};
-
-const removeCard = async (id) => {
-    if (!confirm("Удалить эту карту?")) return;
-    try {
-        await axios.delete(`/api/cards/${id}`);
-        cards.value = cards.value.filter(c => c.id !== id);
-    } catch (e) { alert("Ошибка удаления"); }
-};
-
-// --- ОСТАЛЬНАЯ ЛОГИКА ---
+// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 const translateDelivery = (s) => ({ 'created': 'Обработка', 'shipping': 'Доставляется', 'awaiting': 'Готов к выдаче', 'delivered': 'Получен' }[s] || 'В обработке');
 const getDeliveryStatusStyle = (s) => ({ 'created': { backgroundColor: '#f0f0f0' }, 'shipping': { backgroundColor: '#fff3cd' }, 'awaiting': { backgroundColor: '#d1ecf1' }, 'delivered': { backgroundColor: '#d4edda' } }[s]);
 const translatePayment = (s) => ({ 'paid': 'Оплачен', 'awaiting_payment': 'При получении', 'unpaid': 'Не оплачен' }[s] || 'Неизвестно');
-const getPaymentStatusStyle = (s) => ({ 'paid': { color: '#27ae60', borderColor: '#27ae60' }, 'awaiting_payment': { color: '#2980b9', borderColor: '#2980b9' }, 'unpaid': { color: '#e74c3c', borderColor: '#e74c3c' } }[s]);
-
-const totalSpent = computed(() => Array.isArray(orders.value) ? orders.value.reduce((sum, o) => sum + Number(o.total_price || 0), 0) : 0);
+const getPaymentStatusStyle = (s) => ({ 'paid': { color: '#27ae60' }, 'awaiting_payment': { color: '#2980b9' }, 'unpaid': { color: '#e74c3c' } }[s]);
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU') : '---';
+const totalSpent = computed(() => Array.isArray(orders.value) ? orders.value.reduce((sum, o) => sum + Number(o.total_price || 0), 0) : 0);
 
+// --- ЗАГРУЗКА ДАННЫХ ---
 const loadData = async () => {
   const userId = localStorage.getItem('user_id');
-  if (!userId) { window.location.href = '/login'; return; }
+  if (!userId) return;
 
-  axios.get(`/api/users/profile/${userId}`).then(res => user.value = res.data);
+  try {
+    const uRes = await axios.get(`/api/users/profile/${userId}`);
+    user.value = uRes.data;
+  } catch (e) { console.error("Ошибка профиля"); }
+
   axios.get(`/api/orders/${userId}`).then(res => { orders.value = res.data; loadingOrders.value = false; });
   axios.get(`/api/cards/${userId}`).then(res => { cards.value = res.data; loadingCards.value = false; });
   axios.get(`/api/wishlist/${userId}`).then(res => wishlistCount.value = res.data.length);
@@ -280,6 +226,26 @@ const loadData = async () => {
   }
 };
 
+// --- ДЕЙСТВИЯ ---
+const saveCard = async () => {
+    if (newCard.number.length < 16) return alert("Введите номер карты");
+    try {
+        const userId = localStorage.getItem('user_id');
+        const res = await axios.post('/api/cards', { user_id: userId, ...newCard });
+        cards.value.push(res.data);
+        isAddCardModalOpen.value = false;
+        Object.assign(newCard, { number: '', holder: '', expiry: '' });
+    } catch (e) { alert("Ошибка сохранения"); }
+};
+
+const removeCard = async (id) => {
+    if (!confirm("Удалить?")) return;
+    try {
+        await axios.delete(`/api/cards/${id}`);
+        cards.value = cards.value.filter(c => c.id !== id);
+    } catch (e) { alert("Ошибка"); }
+};
+
 const removeFromRecent = (id) => {
   let ids = JSON.parse(localStorage.getItem('recent_views') || '[]');
   ids = ids.filter(i => i !== id);
@@ -287,5 +253,17 @@ const removeFromRecent = (id) => {
   recentProducts.value = recentProducts.value.filter(p => p.id !== id);
 };
 
-onMounted(loadData);
+onMounted(async () => {
+  // Логика синхронизации сессии Google
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session && !localStorage.getItem('user_id')) {
+    const sbUser = session.user;
+    localStorage.setItem('user_id', sbUser.id);
+    localStorage.setItem('user_name', sbUser.user_metadata.full_name || sbUser.email);
+    localStorage.setItem('user_avatar', sbUser.user_metadata.avatar_url || '/assets/images/avatars/1.png');
+    localStorage.setItem('role', 'user');
+    window.location.reload();
+  }
+  loadData();
+});
 </script>
