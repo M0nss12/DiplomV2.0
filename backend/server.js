@@ -206,9 +206,22 @@ app.get('/api/marketing/about-info', async (req, res) => {
 
 app.post('/api/feedback/send', async (req, res) => {
     const { name, contact, message } = req.body;
-    const mailOptions = { from: process.env.EMAIL_USER, to: 'monsschogath@gmail.com', subject: `Заявка от ${name}`, text: `Контакты: ${contact}\n\n${message}` };
-    try { await transporter.sendMail(mailOptions); res.json({ success: true }); }
-    catch (e) { logError(e, req); res.status(500).json({ error: e.message }); }
+    
+    const mailOptions = { 
+        from: process.env.EMAIL_USER, // Отправляем от своего имени (Gmail так любит больше)
+        replyTo: contact,             // Email клиента (чтобы ответить ему в один клик)
+        to: 'monsschogath@gmail.com', 
+        subject: `Заявка от ${name} (ApexDrive)`, 
+        text: `Имя: ${name}\nКонтакты для связи: ${contact}\n\nСообщение:\n${message}` 
+    };
+
+    try { 
+        await transporter.sendMail(mailOptions); 
+        res.json({ success: true }); 
+    } catch (e) { 
+        logError(e, req); 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // =====================================================================
