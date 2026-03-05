@@ -252,3 +252,4 @@
 {"id":"177273521461435zf4","timestamp":"06.03.2026, 02:26:54","type":"ACTION","action":"PUT_REQUEST","message":"Успешный запрос на /api/admin/products/60","user":{"id":"seed_user_1","name":"Имя0","role":"admin"},"ip":"::1","details":{}}
 {"id":"17727352238559rgoc","timestamp":"06.03.2026, 02:27:03","type":"ACTION","action":"PUT_REQUEST","message":"Успешный запрос на /api/admin/products/59","user":{"id":"seed_user_1","name":"Имя0","role":"admin"},"ip":"::1","details":{}}
 {"id":"17727352285602vyf7","timestamp":"06.03.2026, 02:27:08","type":"ACTION","action":"PUT_REQUEST","message":"Успешный запрос на /api/admin/products/58","user":{"id":"seed_user_1","name":"Имя0","role":"admin"},"ip":"::1","details":{}}
+{"id":"1772740353952fcb26","timestamp":"06.03.2026, 03:52:33","type":"ACTION","action":"POST_REQUEST","message":"Успешный запрос на /api/users/login","user":{"id":"guest","name":"Аноним","role":"guest"},"ip":"::1","details":{}}

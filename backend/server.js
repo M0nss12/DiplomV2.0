@@ -40,11 +40,14 @@ const DEFAULT_AVATARS = [
 // Настройка почты для работы на хостинге
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Использовать SSL
+    port: 587,
+    secure: false, // false для порта 587
     auth: { 
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS 
+    },
+    tls: {
+        rejectUnauthorized: false // Помогает избежать проблем с сертификатами на хостинге
     }
 });
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-logs">
+  <div class="admin-logs-page">
     <!-- ШАПКА ЖУРНАЛА -->
     <div class="header-row">
       <div class="header-left">
@@ -58,8 +58,8 @@
               <td class="col-time">{{ formatTime(log.timestamp) }}</td>
               <td>
                 <div class="user-info">
-                  <span class="badge" :class="log.user?.role">{{ log.user?.role }}</span>
-                  <span class="user-name">{{ log.user?.name }}</span>
+                  <span class="badge" :class="log.user?.role || 'guest'">{{ log.user?.role || 'guest' }}</span>
+                  <span class="user-name">{{ log.user?.name || 'Система' }}</span>
                 </div>
               </td>
               <td>
@@ -124,7 +124,9 @@
         </div>
         <div class="modal-body">
             <div class="tech-info">
-                <strong>URL:</strong> <code>{{ selectedError.method }} {{ selectedError.url }}</code>
+                <strong>URL:</strong> 
+                <span class="method-badge" :class="getMethodClass(selectedError.method)">{{ selectedError.method }}</span>
+                <code>{{ selectedError.url }}</code>
             </div>
             <p class="label">Stack Trace:</p>
             <pre class="terminal-box">{{ selectedError.stack }}</pre>
@@ -140,7 +142,6 @@
 </template>
 
 <script setup>
-/* КОД СКРИПТА ОСТАВЛЯЕМ ТВОЙ ОРИГИНАЛЬНЫЙ (логика не меняется) */
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import axios from 'axios';
 
@@ -156,25 +157,39 @@ let refreshInterval = null;
 
 const setLogType = (type) => { logType.value = type; currentPage.value = 1; fetchLogs(); };
 
+// Внутри AdminLogs.vue
 const fetchLogs = async () => {
   loading.value = true;
   try {
-    const res = await axios.get(`http://localhost:3000/api/admin/system/logs?type=${logType.value}`, {
+    // Убираем http://localhost:3000
+    const res = await axios.get(`/api/admin/system/logs?type=${logType.value}`, {
       headers: { 'x-admin-key': 'my_super_secret_admin_123' }
     });
     logs.value = res.data;
-  } catch (e) { console.error('Ошибка загрузки логов'); } 
-  finally { loading.value = false; }
+  } catch (e) {
+    console.error('Ошибка загрузки логов', e);
+  } finally {
+    loading.value = false;
+  }
 };
 
+// --- ИСПРАВЛЕННАЯ ЛОГИКА ФИЛЬТРАЦИИ ---
 const filteredLogs = computed(() => {
     if (!searchQuery.value.trim()) return logs.value;
     const q = searchQuery.value.toLowerCase().trim();
     return logs.value.filter(l => {
-        return l.message?.toLowerCase().includes(q) || 
-               l.ip?.includes(q) || 
-               l.user?.name?.toLowerCase().includes(q) ||
-               l.user?.id?.toString() === q;
+        if (!l) return false; // Защита от пустых строк в логе
+
+        const messageMatch = l.message?.toLowerCase().includes(q);
+        const ipMatch = l.ip?.includes(q);
+        
+        // Главный фикс: проверяем, что l.user вообще существует, перед тем как лезть в его свойства
+        const userMatch = l.user && (
+            l.user.name?.toLowerCase().includes(q) ||
+            l.user.id?.toString().includes(q)
+        );
+
+        return messageMatch || ipMatch || userMatch;
     });
 });
 
@@ -191,6 +206,7 @@ watch(autoRefresh, (newVal) => {
 });
 
 const getMethodClass = (action) => {
+    if (!action) return 'm-get';
     if (action.includes('DELETE')) return 'm-delete';
     if (action.includes('POST')) return 'm-post';
     if (action.includes('PATCH') || action.includes('PUT')) return 'm-update';
@@ -205,7 +221,11 @@ onUnmounted(() => clearInterval(refreshInterval));
 </script>
 
 <style scoped>
-.admin-logs {
+/* ============================================================
+   СТИЛИ СИСТЕМНОГО ЖУРНАЛА (ФИКС КОНТРАСТА)
+   ============================================================ */
+
+.admin-logs-page {
   padding: 40px 20px;
   animation: fadeIn 0.4s ease-out;
   color: var(--text-main);
@@ -274,6 +294,7 @@ code { background: var(--bg-input); padding: 3px 6px; border-radius: 6px; font-f
 .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; margin-right: 8px; }
 .admin { background: var(--warning-light); color: var(--warning); }
 .user { background: var(--primary-light); color: var(--primary); }
+.guest { background: var(--bg-input); color: var(--text-muted); }
 
 /* ОШИБКИ */
 .row-error { background-color: rgba(244, 63, 94, 0.02); }
