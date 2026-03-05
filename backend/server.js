@@ -37,13 +37,23 @@ const DEFAULT_AVATARS = [
     `${process.env.SUPABASE_URL}/storage/v1/object/public/avatars/6.png`
 ];
 
+// Настройка почты для работы на хостинге
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
-    secure: true, // использование SSL
+    secure: true, // Использовать SSL
     auth: { 
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS 
+    }
+});
+
+// Проверка подключения при старте сервера
+transporter.verify(function (error, success) {
+    if (error) {
+        console.error("❌ Ошибка подключения к почте:", error);
+    } else {
+        console.log("✅ Почтовый сервер готов к отправке сообщений");
     }
 });
 
@@ -213,8 +223,8 @@ app.post('/api/feedback/send', async (req, res) => {
     const { name, contact, message } = req.body;
     
     const mailOptions = { 
-        from: process.env.EMAIL_USER, // Отправляем от своего имени (Gmail так любит больше)
-        replyTo: contact,             // Email клиента (чтобы ответить ему в один клик)
+        from: process.env.EMAIL_USER, // Отправляем от СЕБЯ
+        replyTo: contact,             // Но отвечаем КЛИЕНТУ
         to: 'monsschogath@gmail.com', 
         subject: `Заявка от ${name} (ApexDrive)`, 
         text: `Имя: ${name}\nКонтакты для связи: ${contact}\n\nСообщение:\n${message}` 
@@ -224,6 +234,7 @@ app.post('/api/feedback/send', async (req, res) => {
         await transporter.sendMail(mailOptions); 
         res.json({ success: true }); 
     } catch (e) { 
+        console.error("🔴 ОШИБКА ОТПРАВКИ ПИСЬМА:", e); // Выведет ошибку в логи Render
         logError(e, req); 
         res.status(500).json({ error: e.message }); 
     }
