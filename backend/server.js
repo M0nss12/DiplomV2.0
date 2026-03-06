@@ -39,24 +39,25 @@ const DEFAULT_AVATARS = [
 
 // Настройка почты для работы на хостинге
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+    host: 'smtp.sendgrid.net', // Использовать SMTP хост SendGrid
     port: 587,
-    secure: false, // false для порта 587
+    secure: false, // TLS
     auth: { 
-        user: process.env.EMAIL_USER, 
-        pass: process.env.EMAIL_PASS 
+        user: process.env.SMTP_USER, // Должно быть 'apikey'
+        pass: process.env.SMTP_PASS  // Сам API Key
     },
     tls: {
-        rejectUnauthorized: false // Помогает избежать проблем с сертификатами на хостинге
+        rejectUnauthorized: false 
     }
 });
 
-// Проверка подключения при старте сервера
+// Обязательная проверка подключения при старте сервера
 transporter.verify(function (error, success) {
     if (error) {
-        console.error("❌ Ошибка подключения к почте:", error);
+        // Если здесь ошибка, значит, проблема в EMAIL_USER/EMAIL_PASS на Render
+        console.error("❌ Ошибка подключения к SMTP:", error.message); 
     } else {
-        console.log("✅ Почтовый сервер готов к отправке сообщений");
+        console.log("✅ Почтовый сервер готов к отправке сообщений (SendGrid)");
     }
 });
 
