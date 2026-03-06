@@ -38,16 +38,37 @@ const DEFAULT_AVATARS = [
 ];
 
 // Настройка почты для работы на хостинге
+// В файле server.js
 const transporter = nodemailer.createTransport({
-    host: 'smtp.sendgrid.net', // Использовать SMTP хост SendGrid
+    host: 'smtp.gmail.com',
     port: 587,
     secure: false, // TLS
     auth: { 
-        user: process.env.SMTP_USER, // Должно быть 'apikey'
-        pass: process.env.SMTP_PASS  // Сам API Key
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS 
     },
     tls: {
         rejectUnauthorized: false 
+    }
+});
+
+// ОБЯЗАТЕЛЬНО: добавь это сразу после создания transporter, 
+// чтобы мы увидели статус в логах Render при запуске!
+transporter.verify(function (error, success) {
+    if (error) {
+        console.log("❌ СЕРВЕР RENDER НЕ МОЖЕТ ПОДКЛЮЧИТЬСЯ К GMAIL:", error.message);
+    } else {
+        console.log("✅ СЕРВЕР RENDER УСПЕШНО ПОДКЛЮЧЕН К GMAIL");
+    }
+});
+
+// Обязательная проверка подключения при старте сервера
+transporter.verify(function (error, success) {
+    if (error) {
+        // Если тут ошибка, то проблема в ENV или сетевой блокировке
+        console.error("❌ Ошибка подключения к Gmail SMTP:", error.message); 
+    } else {
+        console.log("✅ Почтовый сервер Gmail готов к отправке.");
     }
 });
 
