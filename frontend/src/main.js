@@ -1,16 +1,18 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import axios from 'axios' // 1. Импортируем axios
+import axios from 'axios'
 
 import './assets/main.css';
 
 import App from './App.vue'
 import router from './router'
 
-// 2. Настраиваем базовый URL для всех запросов
-// Если проект запущен локально (npm run dev), будет http://localhost:3000
-// Если на хостинге — будет адрес твоего бэкенда на Render
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// АВТОМАТИЧЕСКОЕ ОПРЕДЕЛЕНИЕ URL БЭКЕНДА
+const isProduction = window.location.hostname !== 'localhost';
+
+axios.defaults.baseURL = isProduction 
+  ? 'https://diplomv2-0.onrender.com'  // Твой адрес на Render
+  : 'http://localhost:3000';           // Твой адрес при разработке дома
 
 const app = createApp(App)
 

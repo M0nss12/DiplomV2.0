@@ -24,6 +24,12 @@ const TINKOFF_SECRET = process.env.TINKOFF_SECRET || 'ваш_секрет';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const upload = multer({ storage: multer.memoryStorage() });
 
+
+app.use(cors({
+    origin: ['https://diplomv2-0.onrender.com', 'http://localhost:3000'], // Разрешаем фронтенд на рендере и локально
+    credentials: true
+}));
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
