@@ -71,7 +71,7 @@ async function seed() {
 
         // 1. БРЕНДЫ
         const { data: dbBrands } = await supabase.from('brands').insert(
-            brandNames.map(b => ({ name: b, logo_url: `${STORAGE_URL}/brands/${b.webp}`, country: 'EU/Global', is_popular: true }))
+            brandNames.map(b => ({ name: b, logo_url: `${STORAGE_URL}/brands/${b}.webp`, country: 'EU/Global', is_popular: true }))
         ).select();
 
         // 2. КАТЕГОРИИ
@@ -90,13 +90,14 @@ async function seed() {
         const { data: dbWarehouses } = await supabase.from('warehouses').insert(whData).select();
 
         // 4. ПОЛЬЗОВАТЕЛИ
+        console.log('👥 Создание пользователей (пароль: 123)...');
         const { data: dbUsers } = await supabase.from('users').insert(
             Array.from({ length: 30 }).map((_, i) => ({
                 id: `user_uuid_${i + 1}`,
                 role: i === 0 ? 'admin' : 'user',
-                email: `user_${i+1}@apex-auto.ru`,
+                email: `user${i+1}@example.com`,
                 phone_number: `+7950${(i+1000000).toString().slice(1)}`,
-                password_hash: 'hash_secret_123',
+                password_hash: '123',
                 first_name: `Имя${i+1}`, last_name: `Фамилия${i+1}`, otchestvo: `Отчество${i+1}`,
                 avatar_url: `${STORAGE_URL}/avatars/${(i % 6) + 1}.png`,
                 saved_address: `${cities60[i % 60]}, ул. Новая, д. ${i + 1}`,
@@ -128,20 +129,17 @@ async function seed() {
         console.log('📦 Заполнение остатков (3 города на товар)...');
         const stocksToInsert = [];
         dbProducts.forEach(product => {
-            // Выбираем 3 случайных уникальных города из 60
             const shuffledCities = [...cities60].sort(() => 0.5 - Math.random());
             const selectedCities = shuffledCities.slice(0, 3);
 
             selectedCities.forEach(cityName => {
-                // Находим склады в этом городе
                 const warehousesInCity = dbWarehouses.filter(w => w.city_name === cityName);
-                // Берем первый доступный склад в этом городе
                 const targetWarehouse = warehousesInCity[0];
 
                 stocksToInsert.push({
                     product_id: product.id,
                     warehouse_id: targetWarehouse.id,
-                    quantity: Math.floor(Math.random() * 50) + 10, // от 10 до 60 шт
+                    quantity: Math.floor(Math.random() * 50) + 10, 
                     shelf_location: `S-${Math.floor(Math.random() * 99) + 1}`
                 });
             });
@@ -171,7 +169,7 @@ async function seed() {
         });
         await supabase.from('reviews').insert(reviews);
 
-        console.log('✅ Сидирование завершено! Каждый товар доступен в 3 разных городах.');
+        console.log('✅ Сидирование завершено успешно!');
     } catch (e) {
         console.error('❌ Ошибка:', e);
     }

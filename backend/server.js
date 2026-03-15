@@ -26,7 +26,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 
 app.use(cors({
-    origin: ['https://diplomv2-0.onrender.com', 'http://localhost:3000'], // Разрешаем фронтенд на рендере и локально
+    origin: ['https://diplomv2-0.onrender.com', 'http://localhost:3000'], 
     credentials: true
 }));
 
@@ -43,12 +43,10 @@ const DEFAULT_AVATARS = [
     `${process.env.SUPABASE_URL}/storage/v1/object/public/avatars/6.png`
 ];
 
-// Настройка почты для работы на хостинге
-// В файле server.js
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, // TLS
+    secure: false, 
     auth: { 
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS 
@@ -58,33 +56,11 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// ОБЯЗАТЕЛЬНО: добавь это сразу после создания transporter, 
-// чтобы мы увидели статус в логах Render при запуске!
 transporter.verify(function (error, success) {
     if (error) {
         console.log("❌ СЕРВЕР RENDER НЕ МОЖЕТ ПОДКЛЮЧИТЬСЯ К GMAIL:", error.message);
     } else {
         console.log("✅ СЕРВЕР RENDER УСПЕШНО ПОДКЛЮЧЕН К GMAIL");
-    }
-});
-
-// Обязательная проверка подключения при старте сервера
-transporter.verify(function (error, success) {
-    if (error) {
-        // Если тут ошибка, то проблема в ENV или сетевой блокировке
-        console.error("❌ Ошибка подключения к Gmail SMTP:", error.message); 
-    } else {
-        console.log("✅ Почтовый сервер Gmail готов к отправке.");
-    }
-});
-
-// Обязательная проверка подключения при старте сервера
-transporter.verify(function (error, success) {
-    if (error) {
-        // Если здесь ошибка, значит, проблема в EMAIL_USER/EMAIL_PASS на Render
-        console.error("❌ Ошибка подключения к SMTP:", error.message); 
-    } else {
-        console.log("✅ Почтовый сервер готов к отправке сообщений (SendGrid)");
     }
 });
 
@@ -252,23 +228,9 @@ app.get('/api/marketing/about-info', async (req, res) => {
 
 app.post('/api/feedback/send', async (req, res) => {
     const { name, contact, message } = req.body;
-    
-    const mailOptions = { 
-        from: process.env.EMAIL_USER, // Отправляем от СЕБЯ
-        replyTo: contact,             // Но отвечаем КЛИЕНТУ
-        to: 'monsschogath@gmail.com', 
-        subject: `Заявка от ${name} (ApexDrive)`, 
-        text: `Имя: ${name}\nКонтакты для связи: ${contact}\n\nСообщение:\n${message}` 
-    };
-
-    try { 
-        await transporter.sendMail(mailOptions); 
-        res.json({ success: true }); 
-    } catch (e) { 
-        console.error("🔴 ОШИБКА ОТПРАВКИ ПИСЬМА:", e); // Выведет ошибку в логи Render
-        logError(e, req); 
-        res.status(500).json({ error: e.message }); 
-    }
+    const mailOptions = { from: process.env.EMAIL_USER, replyTo: contact, to: 'monsschogath@gmail.com', subject: `Заявка от ${name}`, text: `Контакты: ${contact}\n\n${message}` };
+    try { await transporter.sendMail(mailOptions); res.json({ success: true }); }
+    catch (e) { logError(e, req); res.status(500).json({ error: e.message }); }
 });
 
 // =====================================================================
@@ -315,22 +277,20 @@ app.post('/api/products/recent', async (req, res) => {
 });
 
 // =====================================================================
-// 👤 API: ПРОФИЛЬ, КАРТЫ, ИЗБРАННОЕ
+// 👤 API: ПОЛЬЗОВАТЕЛИ
 // =====================================================================
 app.post('/api/users/register', async (req, res) => {
     try {
         const { email, phone, password, first_name, last_name, otchestvo, city } = req.body;
-        // 1. ГЕНЕРАЦИЯ СТРОКОВОГО ID
         const newUserId = Date.now().toString(); 
         
         let filter = email ? `email.eq.${email}` : `phone_number.eq.${phone}`;
-        const { data: existing } = await supabase.from('users').select('*').or(filter).limit(1).single();
+        const { data: existing } = await supabase.from('users').select('*').or(filter).maybeSingle();
 
         if (existing && !existing.password_hash) {
             const { data } = await supabase.from('users').update({ password_hash: password, role: 'user', first_name, last_name, otchestvo, saved_address: city }).eq('id', existing.id).select();
             return res.json(data[0]);
         }
-        // 2. ИСПОЛЬЗОВАНИЕ СТРОКОВОГО ID ПРИ ВКЛАДКЕ
         const { data, error } = await supabase.from('users').insert([{ id: newUserId, role: 'user', email, phone_number: phone, password_hash: password, first_name, last_name, otchestvo, saved_address: city, avatar_url: DEFAULT_AVATARS[0] }]).select();
         if (error) throw error;
         res.json(data[0]);
@@ -339,37 +299,51 @@ app.post('/api/users/register', async (req, res) => {
 
 app.post('/api/users/login', async (req, res) => {
     const { login, password } = req.body;
-    const { data } = await supabase.from('users').select('*').or(`email.eq.${login},phone_number.eq.${login}`).eq('password_hash', password).single();
-    if (!data) return res.status(401).json({ error: 'Неверные данные' });
-    res.json(data);
+    
+    const { data: user } = await supabase.from('users').select('*').or(`email.eq.${login},phone_number.eq.${login}`).maybeSingle();
+    if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
+
+    // Проверка хэшированного пароля через RPC в базе
+    const { data: isValid } = await supabase.rpc('verify_user_password', {
+        user_id_param: user.id,
+        pass_param: password
+    });
+
+    if (!isValid) return res.status(401).json({ error: 'Неверный пароль' });
+    res.json(user);
 });
 
 app.get('/api/users/profile/:id', async (req, res) => {
-    // УБРАН parseInt
     const { data, error } = await supabase.from('users').select('*').eq('id', req.params.id).single();
     if (error) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(data);
 });
 
 app.put('/api/users/profile/:id', async (req, res) => {
-    // УБРАН parseInt
     const { data, error } = await supabase.from('users').update(req.body).eq('id', req.params.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
 app.post('/api/users/change-password/:id', async (req, res) => {
-    // УБРАН parseInt
     const { oldPassword, newPassword } = req.body;
-    const { data: user } = await supabase.from('users').select('password_hash').eq('id', req.params.id).single();
-    if (user.password_hash !== oldPassword) return res.status(400).json({ error: 'Пароль неверный' });
-    await supabase.from('users').update({ password_hash: newPassword }).eq('id', req.params.id);
+    const userId = req.params.id;
+
+    const { data: isValid } = await supabase.rpc('verify_user_password', {
+        user_id_param: userId,
+        pass_param: oldPassword
+    });
+
+    if (!isValid) return res.status(400).json({ error: 'Старый пароль введен неверно' });
+
+    const { error: updateError } = await supabase.from('users').update({ password_hash: newPassword }).eq('id', userId);
+    if (updateError) return res.status(500).json({ error: 'Ошибка БД' });
+
     res.json({ success: true });
 });
 
 // КАРТЫ ПОЛЬЗОВАТЕЛЯ
 app.get('/api/cards/:userId', async (req, res) => {
-    // УБРАН parseInt
     const { data, error } = await supabase.from('user_cards').select('*').eq('user_id', req.params.userId).order('is_default', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data || []);
@@ -394,7 +368,6 @@ app.delete('/api/cards/:id', async (req, res) => {
 
 // ИЗБРАННОЕ
 app.get('/api/wishlist/:userId', async (req, res) => {
-    // УБРАН parseInt
     const { data, error } = await supabase.from('wishlists').select(`id, product_id, products (*, product_stocks (*, warehouses (*)))`).eq('user_id', req.params.userId);
     if (error) return res.status(500).json({ error: error.message });
     res.json(data || []);
@@ -410,7 +383,6 @@ app.post('/api/wishlist', async (req, res) => {
 });
 
 app.delete('/api/wishlist/:userId/:prodId', async (req, res) => {
-    // УБРАН parseInt
     await supabase.from('wishlists').delete().eq('user_id', req.params.userId).eq('product_id', req.params.prodId);
     res.send('ok');
 });
@@ -440,7 +412,6 @@ app.get('/api/orders/test-geo', async (req, res) => {
 });
 
 app.get('/api/orders/:userId', async (req, res) => {
-    // УБРАН parseInt
     const { data, error } = await supabase.from('orders').select(`*, order_items (*, products (name, image_url))`).eq('user_id', req.params.userId).order('created_at', { ascending: false });
     if (error) return res.json([]);
     res.json(data || []);
@@ -475,8 +446,6 @@ app.post('/api/orders', async (req, res) => {
             totalPrice += currentPrice * item.quantity;
             itemsData.push({ product_id: p.id, quantity: item.quantity, unit_price: currentPrice });
             
-            // --- ПРОВЕРКА МЕЖГОРОДА (ИСПРАВЛЕНО) ---
-            // Считаем общий остаток этого товара во ВСЕМ городе выбранного ПВЗ
             const totalInCity = p.product_stocks.reduce((acc, stockRecord) => {
                 const wh = allWarehouses.find(w => w.id === stockRecord.warehouse_id);
                 if (wh && wh.city_name.toLowerCase() === selectedWarehouse.city_name.toLowerCase()) {
@@ -485,10 +454,8 @@ app.post('/api/orders', async (req, res) => {
                 return acc;
             }, 0);
 
-            // Если в городе суммарно меньше, чем заказал юзер - значит везем из другого города
             if (totalInCity < item.quantity) needsShippingToPVZ = true;
 
-            // Списание остатков
             let amountNeeded = item.quantity;
             const sortedStocks = [...p.product_stocks].sort((a, b) => (a.warehouse_id === warehouse_id ? -1 : 1));
             for (let stock of sortedStocks) {

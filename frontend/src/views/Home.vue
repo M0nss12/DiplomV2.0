@@ -26,13 +26,13 @@
           <!-- Выпадающий список результатов -->
           <transition name="fade">
             <div v-if="isHeroSearchOpen && searchQuery.length >= 2" class="hero-search-dropdown">
-              <!-- Категории -->
+              <!-- Категории (ИСПРАВЛЕНО: ведет на /category/ для отображения товаров) -->
               <div v-if="heroSearchResults.categories.length" class="hs-group">
                 <div class="hs-label">Категории</div>
                 <router-link 
                   v-for="c in heroSearchResults.categories" 
                   :key="c.id" 
-                  :to="`/catalog/${c.id}`" 
+                  :to="`/category/${c.id}`" 
                   class="hs-item"
                 >
                   <span class="hs-icon">📂</span> {{ c.name }}
@@ -68,7 +68,7 @@
       </div>
     </section>
 
-    <!-- 2. ГОРЯЧИЕ ПРЕДЛОЖЕНИЯ (Перемещено сюда) -->
+    <!-- 2. ГОРЯЧИЕ ПРЕДЛОЖЕНИЯ -->
     <section v-if="hotDeals.length" class="carousel-section">
       <div class="carousel-header">
         <h2>🔥 Горячие предложения</h2>
@@ -128,7 +128,8 @@
         <router-link to="/catalog" class="see-all">Все категории →</router-link>
       </div>
       <div class="categories-grid">
-        <router-link v-for="cat in popularCategories" :key="cat.id" :to="'/catalog/' + cat.id" class="category-card-link">
+        <!-- ИСПРАВЛЕНО: Ссылка изменена с /catalog/ на /category/ -->
+        <router-link v-for="cat in popularCategories" :key="cat.id" :to="'/category/' + cat.id" class="category-card-link">
           <div class="category-card">
             <img :src="cat.image_url || '/assets/images/no-cat.png'" :alt="cat.name" loading="lazy" />
             <p><b>{{ cat.name }}</b></p>
@@ -192,11 +193,6 @@
       <p>
         Мы предлагаем более 100 000 наименований оригинальных запчастей и качественных аналогов для легковых автомобилей. 
         Благодаря прямым контрактам с производителями и умной логистике, мы гарантируем низкие цены и быструю доставку в г. {{ appStore.city }}.
-      </p>
-      <p>
-        Покупая у нас, вы получаете официальную гарантию до 24 месяцев, возможность лёгкого возврата в течение 14 дней и 
-        персональную поддержку. Подберите запчасти по каталогу или воспользуйтесь умным поиском – 
-        ApexDrive сделает ремонт вашего автомобиля простым и выгодным.
       </p>
     </section>
 
@@ -309,18 +305,15 @@ const loadData = async () => {
   } catch (e) { console.error('Ошибка загрузки данных', e); }
 };
 
-// --- ЛОГИКА УМНОГО ПОИСКА В HERO ---
 const handleHeroSearch = () => {
     clearTimeout(heroSearchTimer);
     if (searchQuery.value.length < 2) {
         heroSearchResults.value = { products: [], categories: [] };
         return;
     }
-    
     heroSearchTimer = setTimeout(async () => {
         try {
-            // Используем тот же эндпоинт глобального поиска
-            const res = await axios.get(`http://localhost:3000/api/global-search?q=${searchQuery.value}`);
+            const res = await axios.get(`/api/global-search?q=${searchQuery.value}`);
             heroSearchResults.value = res.data;
         } catch (e) { console.error("Hero search error:", e); }
     }, 300);
@@ -344,11 +337,9 @@ const handleClickOutside = (event) => {
   }
 };
 
-// Избранное
 const toggleWishlist = async (id) => {
   const uid = localStorage.getItem('user_id');
   if (!uid) return alert('Войдите в аккаунт.');
-  
   try {
     if (wishlistIds.value.includes(id)) {
       await axios.delete(`/api/wishlist/${uid}/${id}`);
@@ -360,20 +351,17 @@ const toggleWishlist = async (id) => {
   } catch (e) { console.error(e); }
 };
 
-// Корзина
 const handleAddToCart = (p) => {
   cartStore.addToCart({ ...p, stock_quantity: getTotalStock(p) });
   alert(`Товар "${p.name}" добавлен в корзину!`);
   closeQuickView();
 };
 
-// Карусели (скролл)
 const scroll = (name, dir) => {
   const el = name === 'hotDeals' ? hotDealsRef.value : recentRef.value;
   if (el) el.scrollBy({ left: 320 * dir, behavior: 'smooth' });
 };
 
-// Drag-to-scroll
 const startDrag = (e) => {
   isDragging = true;
   const el = e.currentTarget;
@@ -393,11 +381,8 @@ const duringDrag = (e) => {
 
 const stopDrag = () => {
   isDragging = false;
-  hotDealsRef.value?.classList.remove('dragging');
-  recentRef.value?.classList.remove('dragging');
 };
 
-// Автопрокрутка
 const timers = { hotDeals: null, recent: null };
 const startAuto = (name) => {
   timers[name] = setInterval(() => {
@@ -414,8 +399,15 @@ const startAuto = (name) => {
 const pauseAuto = (name) => clearInterval(timers[name]);
 const resumeAuto = (name) => startAuto(name);
 
-// Быстрый просмотр
-const openQuickView = (product) => { quickViewProduct.value = product; };
+const openQuickView = async (product) => { 
+    try {
+        const res = await axios.get(`/api/products/${product.id}`);
+        quickViewProduct.value = res.data; 
+    } catch (e) {
+        console.error("Ошибка при загрузке данных быстрого просмотра", e);
+        quickViewProduct.value = product; 
+    }
+};
 const closeQuickView = () => { quickViewProduct.value = null; };
 
 onMounted(() => {

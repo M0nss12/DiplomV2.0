@@ -165,20 +165,31 @@ const handleCustomPhoto = async (e) => {
 const saveChanges = async () => {
   const userId = localStorage.getItem('user_id');
 
-  if (passwords.old || passwords.new) {
+  // 1. Обработка пароля (если заполнено поле нового пароля)
+  if (passwords.new) {
+    if (!passwords.old) return alert("Введите текущий пароль для подтверждения");
+    if (passwords.new.length < 6) return alert("Новый пароль слишком короткий");
     if (passwords.new !== passwords.confirm) return alert("Новые пароли не совпадают");
+
     try {
       await axios.post(`/api/users/change-password/${userId}`, {
         oldPassword: passwords.old,
         newPassword: passwords.new
       });
+      // Очистка полей
+      passwords.old = ''; passwords.new = ''; passwords.confirm = '';
     } catch (e) {
-      return alert(e.response?.data?.error || "Старый пароль неверный");
+      alert(e.response?.data?.error || "Ошибка при смене пароля");
+      return; // Останавливаем сохранение профиля, если пароль не подошел
     }
   }
 
+  // 2. Сохранение профиля
   try {
-    const res = await axios.put(`/api/users/profile/${userId}`, user.value);
+    // Удаляем из отправки хэш пароля (он меняется только через спец. роут выше)
+    const { password_hash, ...updateData } = user.value;
+
+    const res = await axios.put(`/api/users/profile/${userId}`, updateData);
     user.value = res.data;
 
     if (user.value.saved_address) {
@@ -189,7 +200,6 @@ const saveChanges = async () => {
     localStorage.setItem('user_avatar', user.value.avatar_url);
 
     alert("Данные успешно сохранены!");
-    passwords.old = ''; passwords.new = ''; passwords.confirm = '';
   } catch (e) { 
       alert("Ошибка сохранения профиля"); 
   }
