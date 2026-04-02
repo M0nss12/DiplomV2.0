@@ -11,7 +11,7 @@
       </div>
     </div>
 
-    <!-- 1. ФОРМА СОЗДАНИЯ -->
+    <!-- 1. ФОРМА СОЗДАНИЯ (Добавлены Отчество, Пароль и ID) -->
     <section class="admin-card create-card">
       <h3 class="card-title">Добавить пользователя вручную</h3>
       <form @submit.prevent="createUser" class="admin-form">
@@ -23,6 +23,10 @@
           <div class="input-group">
             <label>Имя *</label>
             <input v-model="newUser.first_name" placeholder="Иван" required />
+          </div>
+          <div class="input-group">
+            <label>Отчество</label>
+            <input v-model="newUser.otchestvo" placeholder="Иванович" />
           </div>
           <div class="input-group">
             <label>Email</label>
@@ -39,6 +43,12 @@
               <option value="user">Пользователь</option>
               <option value="admin">Админ</option>
             </select>
+          </div>
+          <div class="input-group">
+            <label>Пароль</label>
+            <input v-model="newUser.password_hash" placeholder="Задайте пароль..." />
+          </div>
+          <div class="input-group" style="display: flex; align-items: flex-end;">
           </div>
         </div>
         <div class="form-footer">
@@ -63,11 +73,11 @@
             <option value="guest">Гости</option>
           </select>
         </div>
-        <button @click="resetFilters" class="btn-secondary">Сбросить</button>
+        <button @click="resetFilters" class="btn-secondary" style="align-self: flex-end;">Сбросить</button>
       </div>
     </section>
 
-    <!-- 3. ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ -->
+    <!-- 3. ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ (Все поля редактируются) -->
     <div class="table-container">
       <div class="admin-table-wrapper">
         <table class="admin-table">
@@ -76,8 +86,8 @@
               <th class="col-avatar">Аватар</th>
               <th>ID / ФИО</th>
               <th>Контакты</th>
-              <th class="text-center">Роль</th>
-              <th>Город</th>
+              <th class="text-center">Роль / Согласие</th>
+              <th>Адрес (Город)</th>
               <th class="text-right">Действия</th>
             </tr>
           </thead>
@@ -91,10 +101,11 @@
               </td>
 
               <td>
-                <div class="client-id">ID: #{{ u.id }}</div>
-                <div class="name-edit-row">
+                <div class="client-id" title="Дата регистрации:">ID: #{{ u.id }}</div>
+                <div class="name-edit-row" style="display: flex; flex-direction: column; gap: 3px;">
                   <input v-model="u.last_name" @change="updateUser(u)" class="inline-edit bold" placeholder="Фамилия" />
                   <input v-model="u.first_name" @change="updateUser(u)" class="inline-edit bold" placeholder="Имя" />
+                  <input v-model="u.otchestvo" @change="updateUser(u)" class="inline-edit" placeholder="Отчество" style="font-size: 14px; font-weight: bold; color: #666;" />
                 </div>
               </td>
 
@@ -109,14 +120,23 @@
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
                 </select>
+                <div style="margin-top: 8px;">
+                  <label class="custom-checkbox no-text" title="Согласие на обработку/рассылку" style="justify-content: center;">
+                    <input type="checkbox" v-model="u.allows_data_saving" @change="updateUser(u)" />
+                    <span class="checkmark"></span>
+                  </label>
+                </div>
               </td>
 
               <td>
-                <input v-model="u.saved_address" @change="updateUser(u)" class="inline-edit" placeholder="Город не указан" />
+                <textarea v-model="u.saved_address" @change="updateUser(u)" class="inline-edit" placeholder="Адрес не указан" style="width: 100%; height: 60px; resize: vertical;"></textarea>
+                <small style="color: #999; font-size: 10px;">Рег: {{ new Date(u.created_at).toLocaleDateString() }}</small>
               </td>
 
               <td class="text-right">
-                <button @click="deleteUser(u.id)" class="btn-delete">Удалить</button>
+                <!-- Кнопка сброса пароля -->
+                <button @click="resetUserPassword(u)" class="btn-secondary-small" style="margin-bottom: 5px; width: 100%;">🔑 Пароль</button>
+                <button @click="deleteUser(u.id)" class="btn-delete" style="width: 100%;">🗑️ Удалить</button>
               </td>
             </tr>
           </tbody>
@@ -200,6 +220,7 @@ const filteredUsers = computed(() => {
     res = res.filter(u => 
       u.first_name?.toLowerCase().includes(q) || 
       u.last_name?.toLowerCase().includes(q) || 
+      u.otchestvo?.toLowerCase().includes(q) || 
       u.email?.toLowerCase().includes(q) || 
       u.phone_number?.includes(q)
     );
@@ -230,22 +251,58 @@ const handleFileUpload = async (e) => {
   } catch (err) { alert('Ошибка загрузки файла'); }
 };
 
-const newUser = reactive({ first_name: '', last_name: '', email: '', phone_number: '', role: 'user', password_hash: '123' });
+// Добавлены отчество, флаг и пустой пароль
+const newUser = reactive({ 
+  first_name: '', last_name: '', otchestvo: '', 
+  email: '', phone_number: '', role: 'user', 
+  password_hash: '', allows_data_saving: false 
+});
+
 const createUser = async () => {
   try {
-    const res = await axios.post('/api/admin/users', newUser, config);
+    // Генерируем ID (так как в БД это TEXT, а не SERIAL)
+    const payload = { ...newUser, id: Date.now().toString() };
+    
+    // Если пароль не ввели, удаляем поле (БД сохранит null)
+    if (!payload.password_hash) {
+      delete payload.password_hash;
+    }
+    
+    const res = await axios.post('/api/admin/users', payload, config);
     users.value.unshift(res.data);
-    alert('Пользователь создан');
-  } catch (e) { alert('Ошибка'); }
+    
+    // Сброс формы
+    Object.assign(newUser, { first_name: '', last_name: '', otchestvo: '', email: '', phone_number: '', role: 'user', password_hash: '', allows_data_saving: false });
+    alert('Пользователь успешно создан');
+  } catch (e) { alert('Ошибка при создании пользователя'); }
 };
 
-const updateUser = async (user) => { try { await axios.put(`/api/admin/users/${user.id}`, user, config); } catch (e) { } };
+const updateUser = async (user) => { 
+  try { 
+    await axios.put(`/api/admin/users/${user.id}`, user, config); 
+  } catch (e) { console.error('Ошибка сохранения'); } 
+};
+
+// ФУНКЦИЯ: Сброс пароля
+const resetUserPassword = async (user) => {
+  const newPass = prompt(`Введите новый пароль для пользователя: ${user.first_name}`);
+  if (!newPass) return;
+  
+  try {
+    // Отправляем пароль текстом. Триггер в БД автоматически захэширует его.
+    await axios.put(`/api/admin/users/${user.id}`, { password_hash: newPass }, config);
+    alert('Пароль успешно изменен и зашифрован!');
+  } catch (e) {
+    alert('Ошибка при смене пароля');
+  }
+};
+
 const deleteUser = async (id) => {
-  if (!confirm('Удалить пользователя навсегда?')) return;
+  if (!confirm('Удалить пользователя навсегда? Это удалит его заказы и отзывы!')) return;
   try {
     await axios.delete(`/api/admin/users/${id}`, config);
     users.value = users.value.filter(u => u.id !== id);
-  } catch (e) { alert('Ошибка'); }
+  } catch (e) { alert('Ошибка при удалении'); }
 };
 
 onMounted(loadData);

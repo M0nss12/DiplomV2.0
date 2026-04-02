@@ -49,7 +49,7 @@
       </form>
     </section>
 
-    <!-- 2. УМНАЯ ФИЛЬТРАЦИЯ -->
+    <!-- 2. УМНАЯ ФИЛЬТРАЦИЯ (без изменений) -->
     <section class="admin-card filter-section">
       <div class="filter-grid">
         <div class="input-group search-group">
@@ -93,7 +93,7 @@
       </div>
     </section>
 
-    <!-- 3. ТАБЛИЦА -->
+    <!-- 3. ТАБЛИЦА (сделали ВСЕ поля редактируемыми) -->
     <div class="table-container">
       <div class="table-meta">
         Страница {{ currentPage }} из {{ totalPages || 1 }}
@@ -115,24 +115,28 @@
             <tr v-for="stock in paginatedStocks" :key="stock.id" :class="{ 'row-zero': stock.quantity === 0 }">
               <td class="col-id">#{{ stock.id }}</td>
               
+              <!-- Заменили текст на редактируемый селект для товара -->
               <td>
-                <div class="product-info">
-                  <span class="p-name">{{ getProductName(stock.product_id) }}</span>
-                  <code class="p-sku">{{ getProductSKU(stock.product_id) }}</code>
-                </div>
+                <select v-model="stock.product_id" @change="updateStock(stock)" class="inline-edit table-select" style="width: 100%; font-weight: bold;">
+                  <option v-for="p in products" :key="p.id" :value="p.id">
+                    {{ p.name }} ({{ p.sku }})
+                  </option>
+                </select>
               </td>
 
+              <!-- Заменили текст на редактируемый селект для склада -->
               <td>
-                <div class="warehouse-info">
-                  <span class="w-city">{{ getWarehouseCity(stock.warehouse_id) }}</span>
-                  <small class="w-addr">{{ getWarehouseAddress(stock.warehouse_id) }}</small>
-                </div>
+                <select v-model="stock.warehouse_id" @change="updateStock(stock)" class="inline-edit table-select muted" style="width: 100%;">
+                  <option v-for="w in warehouses" :key="w.id" :value="w.id">
+                    {{ w.city_name }} ({{ w.address }})
+                  </option>
+                </select>
               </td>
 
               <td class="text-center">
                 <input v-model.number="stock.quantity" type="number" 
                        @change="updateStock(stock)" 
-                       class="inline-edit qty-input" 
+                       class="inline-edit qty-input text-center" 
                        :class="{ 'warning-input': stock.quantity === 0 }" />
               </td>
 
@@ -214,10 +218,9 @@ const loadData = async () => {
   } catch (e) { console.error('Ошибка загрузки'); }
 };
 
+// Эти функции теперь нужны только для сортировки
 const getProductName = (id) => products.value.find(p => p.id === id)?.name || '---';
-const getProductSKU = (id) => products.value.find(p => p.id === id)?.sku || '---';
 const getWarehouseCity = (id) => warehouses.value.find(w => w.id === id)?.city_name || '---';
-const getWarehouseAddress = (id) => warehouses.value.find(w => w.id === id)?.address || '---';
 
 const resetFilters = () => {
   searchQuery.value = ''; filters.warehouseId = 'all'; filters.categoryId = 'all';

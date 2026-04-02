@@ -1,181 +1,160 @@
 <template>
   <div class="profile-container">
-    
-    <!-- 1. ШАПКА -->
-    <section v-if="user" style="display: flex; justify-content: space-between; align-items: center;">
-      <div style="display: flex; align-items: center; gap: 20px;">
-        <img :src="user.avatar_url || '/assets/images/avatars/1.png'" width="100" height="100" style="border-radius: 50%; object-fit: cover; border: 2px solid #ddd;" />
+    <!-- 1. ШАПКА ПРОФИЛЯ -->
+    <section v-if="user" class="profile-header">
+      <div class="profile-user-info">
+        <img :src="user.avatar_url || '/assets/images/avatars/1.png'" class="profile-avatar" />
         <div>
-          <h1>Личный кабинет</h1>
-          <p style="font-size: 1.3em; margin: 0;">Добро пожаловать, <strong>{{ user.first_name }}</strong>!</p>
+          <h1 class="profile-title">Личный кабинет</h1>
+          <p class="profile-welcome">Добро пожаловать, <strong>{{ user.first_name }}</strong>!</p>
         </div>
       </div>
-      <div style="background: #fff8e1; padding: 10px 20px; border-radius: 8px; border: 1px solid #ffe082;">
+      <div class="profile-since-badge">
         📅 На сайте с 01.03.2024
       </div>
     </section>
-    <div v-else style="padding: 20px; text-align: center;">Загрузка данных профиля...</div>
+    <div v-else class="profile-loading">Загрузка данных профиля...</div>
 
-    <hr />
+    <hr class="profile-divider" />
 
     <!-- 2. БЛОК СТАТИСТИКИ -->
-    <section style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
-      <div style="border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-        <small style="color: #888;">ЗАКАЗОВ</small>
-        <h2>{{ Array.isArray(orders) ? orders.length : 0 }}</h2>
+    <section class="stats-grid">
+      <div class="stat-card">
+        <small class="stat-label">ЗАКАЗОВ</small>
+        <h2 class="stat-value">{{ Array.isArray(orders) ? orders.length : 0 }}</h2>
       </div>
-      <div style="border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-        <small style="color: #888;">ТРАТЫ</small>
-        <h2>{{ totalSpent }} ₽</h2>
+      <div class="stat-card">
+        <small class="stat-label">ТРАТЫ</small>
+        <h2 class="stat-value">{{ totalSpent }} ₽</h2>
       </div>
-      <div style="border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-        <small style="color: #888;">ИЗБРАННОЕ</small>
-        <h2>{{ wishlistCount }}</h2>
-        <router-link to="/wishlist" style="font-size: 0.8em; color: blue;">Перейти →</router-link>
+      <div class="stat-card">
+        <small class="stat-label">ИЗБРАННОЕ</small>
+        <h2 class="stat-value">{{ wishlistCount }}</h2>
+        <router-link to="/wishlist" class="stat-link">Перейти →</router-link>
       </div>
     </section>
 
-    <br />
-
-    <!-- 3. КНОПКИ -->
-    <section style="display: flex; gap: 10px;">
-      <router-link to="/settings"><button style="padding: 10px 20px; cursor: pointer;">⚙️ Настройки</button></router-link>
-      <router-link to="/catalog"><button style="padding: 10px 20px; cursor: pointer;">🛒 В каталог</button></router-link>
+    <!-- 3. КНОПКИ ДЕЙСТВИЙ -->
+    <section class="action-buttons">
+      <router-link to="/settings" class="action-btn settings-btn">⚙️ Настройки</router-link>
+      <router-link to="/catalog" class="action-btn catalog-btn">🛒 В каталог</router-link>
     </section>
 
-    <br />
-
-    <!-- БЛОК: СОХРАНЕННЫЕ КАРТЫ -->
-    <section style="border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0;">💳 Мои способы оплаты</h3>
-        <button @click="isAddCardModalOpen = true" style="padding: 5px 15px; background: #475be8; color: white; border: none; border-radius: 5px; cursor: pointer;">
-          + Добавить карту
-        </button>
+    <!-- 4. СОХРАНЕННЫЕ КАРТЫ -->
+    <section class="cards-section">
+      <div class="cards-header">
+        <h3 class="cards-title">💳 Мои способы оплаты</h3>
+        <button @click="isAddCardModalOpen = true" class="add-card-btn">+ Добавить карту</button>
       </div>
-      
-      <div v-if="loadingCards">Загрузка карт...</div>
-      <div v-else-if="cards.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
-        <div v-for="card in cards" :key="card.id" style="border: 2px solid #f1f5f9; padding: 20px; border-radius: 15px; position: relative; background: #fff;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <span style="font-weight: 800; text-transform: uppercase; color: #475be8;">{{ card.brand }}</span>
-            <button @click="removeCard(card.id)" style="background: none; border: none; color: #ccc; cursor: pointer; font-size: 1.2rem;">&times;</button>
+
+      <div v-if="loadingCards" class="cards-loading">Загрузка карт...</div>
+      <div v-else-if="cards.length > 0" class="cards-grid">
+        <div v-for="card in cards" :key="card.id" class="card-item">
+          <div class="card-header">
+            <span class="card-brand">{{ card.brand }}</span>
+            <button @click="removeCard(card.id)" class="card-remove-btn">&times;</button>
           </div>
-          <div style="font-family: monospace; font-size: 1.2rem; letter-spacing: 2px; margin-bottom: 10px;">
-            {{ card.card_number_masked }}
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8;">
+          <div class="card-number">{{ card.card_number_masked }}</div>
+          <div class="card-footer">
             <span>{{ card.card_holder }}</span>
             <span>{{ card.expiry_date }}</span>
           </div>
-          <div v-if="card.is_default" style="margin-top: 10px; font-size: 10px; color: green; font-weight: bold;">● ИСПОЛЬЗУЕТСЯ ПО УМОЛЧАНИЮ</div>
+          <div v-if="card.is_default" class="card-default-badge">● ИСПОЛЬЗУЕТСЯ ПО УМОЛЧАНИЮ</div>
         </div>
       </div>
-      <div v-else style="color: #999; padding: 10px 0;">У вас нет сохраненных карт.</div>
+      <div v-else class="cards-empty">У вас нет сохраненных карт.</div>
     </section>
 
-    <br />
-
-    <!-- 4. НИЖНИЕ БЛОКИ -->
-    <div style="display: flex; gap: 30px; align-items: flex-start;">
-      
-      <!-- ЗАКАЗЫ (Левая часть) -->
-      <div style="flex: 2; border: 1px solid #eee; padding: 20px; border-radius: 10px; min-height: 400px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h3 style="margin: 0;">📦 Последние заказы</h3>
-          <router-link to="/orders" style="color: blue; font-size: 0.9em;">Все заказы →</router-link>
+    <!-- 5. ОСНОВНОЙ КОНТЕНТ: ЗАКАЗЫ + НЕДАВНО ПРОСМОТРЕННЫЕ -->
+    <div class="profile-content">
+      <!-- ЗАКАЗЫ -->
+      <div class="orders-section">
+        <div class="orders-header">
+          <h3 class="orders-title">📦 Последние заказы</h3>
+          <router-link to="/orders" class="orders-link">Все заказы →</router-link>
         </div>
 
-        <div v-if="loadingOrders">Загрузка заказов...</div>
-        <div v-else-if="Array.isArray(orders) && orders.length > 0">
-          <!-- ОГРАНИЧЕНИЕ: .slice(0, 6) для показа только последних 6 заказов -->
-          <div v-for="o in orders.slice(0, 6)" :key="o.id" style="padding: 20px 0; border-bottom: 1px solid #f5f5f5;">
-             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                <div>
-                    <strong style="font-size: 1.1em;">Заказ №{{ o.id }}</strong>
-                    <div style="color: #888; font-size: 0.85em; margin-top: 4px;">от {{ formatDate(o.created_at) }}</div>
-                    <div style="margin-top: 8px; font-size: 0.9em; color: #444; display: flex; align-items: flex-start; gap: 5px;">
-                        <span>📍</span>
-                        <span>{{ o.delivery_address || 'Адрес не указан' }}</span>
-                    </div>
+        <div v-if="loadingOrders" class="orders-loading">Загрузка заказов...</div>
+        <div v-else-if="Array.isArray(orders) && orders.length > 0" class="orders-list">
+          <div v-for="o in orders.slice(0, 6)" :key="o.id" class="order-card">
+            <div class="order-header">
+              <div class="order-info">
+                <strong class="order-number">Заказ №{{ o.id }}</strong>
+                <div class="order-date">от {{ formatDate(o.created_at) }}</div>
+                <div class="order-address">
+                  <span>📍</span>
+                  <span>{{ o.delivery_address || 'Адрес не указан' }}</span>
                 </div>
-                
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-                    <span :style="getDeliveryStatusStyle(o.delivery_status)" style="padding: 4px 10px; border-radius: 4px; font-size: 0.85em; font-weight: bold;">
-                        {{ translateDelivery(o.delivery_status) }}
-                    </span>
-                    <span :style="getPaymentStatusStyle(o.payment_status)" style="padding: 2px 8px; border-radius: 4px; font-size: 0.75em; border: 1px solid transparent;">
-                        {{ translatePayment(o.payment_status) }}
-                    </span>
-                </div>
-             </div>
-
-             <!-- СПИСОК ТОВАРОВ В ЗАКАЗЕ -->
-             <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
-                <div v-for="item in o.order_items" :key="item.id" style="display: flex; align-items: center; gap: 15px;">
-                    <!-- Переход к детальному просмотру через картинку -->
-                    <router-link :to="'/product/' + item.product_id" style="position: relative; display: block;">
-                        <img :src="item.products?.image_url" width="50" height="50" style="object-fit: contain; border: 1px solid #eee; border-radius: 6px; padding: 2px; background: white;" />
-                        <span v-if="item.quantity > 1" style="position: absolute; bottom: -5px; right: -5px; background: #333; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px;">
-                            x{{ item.quantity }}
-                        </span>
-                    </router-link>
-                    
-                    <div style="flex: 1;">
-                        <!-- Название товара кликабельно -->
-                        <router-link :to="'/product/' + item.product_id" style="text-decoration: none; color: #1e293b; font-weight: 500; font-size: 0.95em;">
-                            {{ item.products?.name || 'Товар недоступен' }}
-                        </router-link>
-                        <div style="color: #888; font-size: 0.85em;">{{ item.quantity }} шт. × {{ item.unit_price }} ₽</div>
-                    </div>
-                </div>
-             </div>
-
-             <div style="margin-top: 15px; text-align: right; font-weight: bold; font-size: 1.1em; color: #1e293b; border-top: 1px dashed #eee; padding-top: 10px;">
-                Итого: {{ o.total_price }} ₽
-             </div>
-          </div>
-        </div>
-        <div v-else style="padding: 20px; color: #999;">Заказов пока нет</div>
-      </div>
-
-      <!-- НЕДАВНО ПРОСМОТРЕННОЕ -->
-      <div style="flex: 1; border: 1px solid #eee; padding: 20px; border-radius: 10px; max-height: 550px; display: flex; flex-direction: column;">
-        <h3 style="margin: 0 0 15px 0;">👁️ Недавно смотрели ({{ recentProducts.length }})</h3>
-        <div style="flex: 1; overflow-y: auto; padding-right: 10px;">
-          <div v-if="recentProducts.length > 0">
-            <div v-for="p in recentProducts" :key="p.id" style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center; position: relative; border-bottom: 1px solid #fafafa; padding-bottom: 10px;">
-              <img :src="p.image_url" width="45" height="45" style="object-fit: contain; border: 1px solid #eee; border-radius: 5px;" />
-              <div style="font-size: 0.85em; flex: 1;">
-                <router-link :to="'/product/' + p.id" style="text-decoration: none; color: black; font-weight: 500; display: block;">
-                   {{ p.name }}
-                </router-link>
-                <div style="color: #e44d26; font-weight: bold;">{{ p.discount_price || p.price }} ₽</div>
               </div>
-              <button @click="removeFromRecent(p.id)" style="border:none; background:none; cursor:pointer; color:#ccc; font-size: 1.2em;">&times;</button>
+              <div class="order-statuses">
+                <span :style="getDeliveryStatusStyle(o.delivery_status)" class="status-badge">
+                  {{ translateDelivery(o.delivery_status) }}
+                </span>
+                <span :style="getPaymentStatusStyle(o.payment_status)" class="payment-badge">
+                  {{ translatePayment(o.payment_status) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="order-items">
+              <div v-for="item in o.order_items" :key="item.id" class="order-item">
+                <router-link :to="'/product/' + item.product_id" class="order-item-img-link">
+                  <img :src="item.products?.image_url" class="order-item-img" />
+                  <span v-if="item.quantity > 1" class="order-item-qty">x{{ item.quantity }}</span>
+                </router-link>
+                <div class="order-item-details">
+                  <router-link :to="'/product/' + item.product_id" class="order-item-name">
+                    {{ item.products?.name || 'Товар недоступен' }}
+                  </router-link>
+                  <div class="order-item-price">{{ item.quantity }} шт. × {{ item.unit_price }} ₽</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="order-total">
+              Итого: {{ o.total_price }} ₽
             </div>
           </div>
-          <div v-else style="text-align: center; color: #999; padding: 20px;">История пуста</div>
+        </div>
+        <div v-else class="orders-empty">Заказов пока нет</div>
+      </div>
+
+      <!-- НЕДАВНО ПРОСМОТРЕННЫЕ -->
+      <div class="recent-section">
+        <h3 class="recent-title">👁️ Недавно смотрели ({{ recentProducts.length }})</h3>
+        <div class="recent-list">
+          <div v-if="recentProducts.length > 0">
+            <div v-for="p in recentProducts" :key="p.id" class="recent-item">
+              <img :src="p.image_url" class="recent-img" />
+              <div class="recent-info">
+                <router-link :to="'/product/' + p.id" class="recent-name">
+                  {{ p.name }}
+                </router-link>
+                <div class="recent-price">{{ p.discount_price || p.price }} ₽</div>
+              </div>
+              <button @click="removeFromRecent(p.id)" class="recent-remove">&times;</button>
+            </div>
+          </div>
+          <div v-else class="recent-empty">История пуста</div>
         </div>
       </div>
     </div>
 
     <!-- МОДАЛКА ДОБАВЛЕНИЯ КАРТЫ -->
-    <div v-if="isAddCardModalOpen" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-      <div style="background: white; padding: 30px; border-radius: 20px; width: 400px;">
-        <h3>Добавить новую карту</h3>
-        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-          <input v-model="newCard.number" placeholder="Номер карты" maxlength="16" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
-          <input v-model="newCard.holder" placeholder="Имя владельца (IVAN IVANOV)" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; text-transform: uppercase;" />
-          <input v-model="newCard.expiry" placeholder="ММ/ГГ" maxlength="5" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px;" />
+    <div v-if="isAddCardModalOpen" class="modal-overlay" @click.self="isAddCardModalOpen = false">
+      <div class="modal-container">
+        <h3 class="modal-title">Добавить новую карту</h3>
+        <div class="modal-form">
+          <input v-model="newCard.number" placeholder="Номер карты" maxlength="16" class="modal-input" />
+          <input v-model="newCard.holder" placeholder="Имя владельца (IVAN IVANOV)" class="modal-input" style="text-transform: uppercase;" />
+          <input v-model="newCard.expiry" placeholder="ММ/ГГ" maxlength="5" class="modal-input" />
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 25px;">
-          <button @click="saveCard" style="flex: 2; padding: 12px; background: #475be8; color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
-          <button @click="isAddCardModalOpen = false" style="flex: 1; padding: 12px; background: #eee; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+        <div class="modal-actions">
+          <button @click="saveCard" class="modal-save-btn">Сохранить</button>
+          <button @click="isAddCardModalOpen = false" class="modal-cancel-btn">Отмена</button>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -197,9 +176,20 @@ const newCard = reactive({ number: '', holder: '', expiry: '' });
 
 // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 const translateDelivery = (s) => ({ 'created': 'Обработка', 'shipping': 'Доставляется', 'awaiting': 'Готов к выдаче', 'delivered': 'Получен' }[s] || 'В обработке');
-const getDeliveryStatusStyle = (s) => ({ 'created': { backgroundColor: '#f0f0f0' }, 'shipping': { backgroundColor: '#fff3cd' }, 'awaiting': { backgroundColor: '#d1ecf1' }, 'delivered': { backgroundColor: '#d4edda' } }[s]);
+const getDeliveryStatusStyle = (s) => ({ 
+  'created': { backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' },
+  'shipping': { backgroundColor: 'var(--warning-light)', color: 'var(--warning)' },
+  'awaiting': { backgroundColor: 'var(--primary-light)', color: 'var(--primary)' },
+  'delivered': { backgroundColor: 'var(--success-light)', color: 'var(--success)' }
+}[s] || { backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' });
+
 const translatePayment = (s) => ({ 'paid': 'Оплачен', 'awaiting_payment': 'При получении', 'unpaid': 'Не оплачен' }[s] || 'Неизвестно');
-const getPaymentStatusStyle = (s) => ({ 'paid': { color: '#27ae60' }, 'awaiting_payment': { color: '#2980b9' }, 'unpaid': { color: '#e74c3c' } }[s]);
+const getPaymentStatusStyle = (s) => ({ 
+  'paid': { color: 'var(--success)', borderColor: 'var(--success-light)' },
+  'awaiting_payment': { color: 'var(--primary)', borderColor: 'var(--primary-light)' },
+  'unpaid': { color: 'var(--danger)', borderColor: 'var(--danger-light)' }
+}[s] || { color: 'var(--text-muted)' });
+
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU') : '---';
 const totalSpent = computed(() => Array.isArray(orders.value) ? orders.value.reduce((sum, o) => sum + Number(o.total_price || 0), 0) : 0);
 
@@ -254,7 +244,6 @@ const removeFromRecent = (id) => {
 };
 
 onMounted(async () => {
-  // Логика синхронизации сессии Google
   const { data: { session } } = await supabase.auth.getSession();
   if (session && !localStorage.getItem('user_id')) {
     const sbUser = session.user;
@@ -267,3 +256,764 @@ onMounted(async () => {
   loadData();
 });
 </script>
+
+<style scoped>
+
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 var(--primary-light);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(230, 57, 70, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(230, 57, 70, 0);
+  }
+}
+
+.profile-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  animation: fadeSlideUp 0.6s ease-out;
+}
+
+/* ШАПКА ПРОФИЛЯ */
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  background: var(--bg-card);
+  backdrop-filter: blur(4px);
+  padding: 24px 32px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  margin-bottom: 30px;
+  transition: var(--transition);
+}
+
+.profile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.profile-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s;
+}
+
+.profile-avatar:hover {
+  transform: scale(1.02);
+}
+
+.profile-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.profile-welcome {
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.profile-since-badge {
+  background: var(--warning-light);
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--warning-light);
+  font-weight: 600;
+  color: var(--warning);
+  font-size: 0.9rem;
+}
+
+.profile-divider {
+  margin: 30px 0;
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent);
+}
+
+.profile-loading {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+/* СТАТИСТИКА */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(4px);
+  padding: 24px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  text-align: center;
+  transition: var(--transition-bounce);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary-light);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin: 12px 0 8px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-link {
+  font-size: 0.85rem;
+  color: var(--primary);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.stat-link:hover {
+  text-decoration: underline;
+  transform: translateX(3px);
+}
+
+/* КНОПКИ ДЕЙСТВИЙ */
+.action-buttons {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 12px 28px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  text-decoration: none;
+  transition: var(--transition-bounce);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.settings-btn:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.catalog-btn {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  box-shadow: 0 8px 16px rgba(230, 57, 70, 0.25);
+}
+
+.catalog-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(230, 57, 70, 0.35);
+}
+
+/* КАРТЫ ОПЛАТЫ */
+.cards-section {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 28px;
+  margin-bottom: 40px;
+  transition: var(--transition);
+}
+
+.cards-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cards-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text-main);
+}
+
+.add-card-btn {
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-bounce);
+}
+
+.add-card-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--primary-glow);
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card-item {
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-input));
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: var(--transition-bounce);
+  position: relative;
+  backdrop-filter: blur(4px);
+}
+
+.card-item:hover {
+  transform: translateY(-4px);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.card-brand {
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--primary);
+  letter-spacing: 1px;
+}
+
+.card-remove-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: var(--transition);
+}
+
+.card-remove-btn:hover {
+  color: var(--danger);
+  transform: scale(1.1);
+}
+
+.card-number {
+  font-family: 'Monaco', monospace;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.card-default-badge {
+  margin-top: 12px;
+  font-size: 0.7rem;
+  color: var(--success);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.cards-loading, .cards-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
+
+/* ОСНОВНОЙ КОНТЕНТ (ЗАКАЗЫ + ИСТОРИЯ) */
+.profile-content {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.orders-section {
+  flex: 2;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 24px;
+  transition: var(--transition);
+}
+
+.orders-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.orders-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.orders-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.orders-link:hover {
+  text-decoration: underline;
+  transform: translateX(3px);
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.order-card {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 20px;
+}
+
+.order-card:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.order-number {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.order-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 4px 0;
+}
+
+.order-address {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.order-statuses {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.status-badge, .payment-badge {
+  padding: 4px 12px;
+  border-radius: 30px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.payment-badge {
+  border: 1px solid;
+  background: transparent;
+}
+
+.order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.order-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.order-item-img-link {
+  position: relative;
+  display: block;
+}
+
+.order-item-img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 4px;
+  transition: transform 0.2s;
+}
+
+.order-item-img:hover {
+  transform: scale(1.05);
+}
+
+.order-item-qty {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: var(--primary);
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-weight: 800;
+}
+
+.order-item-details {
+  flex: 1;
+}
+
+.order-item-name {
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text-main);
+  transition: color 0.2s;
+}
+
+.order-item-name:hover {
+  color: var(--primary);
+}
+
+.order-item-price {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.order-total {
+  text-align: right;
+  font-weight: 800;
+  font-size: 1.1rem;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.orders-loading, .orders-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
+
+/* НЕДАВНО ПРОСМОТРЕННЫЕ */
+.recent-section {
+  flex: 1;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 24px;
+  position: sticky;
+  top: 100px;
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 20px 0;
+  color: var(--text-main);
+}
+
+.recent-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-width: thin;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition);
+}
+
+.recent-item:hover {
+  transform: translateX(4px);
+}
+
+.recent-img {
+  width: 45px;
+  height: 45px;
+  object-fit: contain;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 3px;
+}
+
+.recent-info {
+  flex: 1;
+}
+
+.recent-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: var(--text-main);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.recent-name:hover {
+  color: var(--primary);
+}
+
+.recent-price {
+  font-weight: 800;
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+
+.recent-remove {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: var(--transition);
+}
+
+.recent-remove:hover {
+  color: var(--danger);
+  transform: scale(1.1);
+}
+
+.recent-empty {
+  text-align: center;
+  padding: 30px;
+  color: var(--text-muted);
+}
+
+/* МОДАЛЬНОЕ ОКНО */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeSlideUp 0.2s ease-out;
+}
+
+.modal-container {
+  background: var(--bg-card);
+  padding: 32px;
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 450px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 24px;
+  color: var(--text-main);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.modal-input {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  transition: var(--transition);
+  font-size: 1rem;
+}
+
+.modal-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+  outline: none;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.modal-save-btn {
+  flex: 2;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-bounce);
+}
+
+.modal-save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--primary-glow);
+}
+
+.modal-cancel-btn {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.modal-cancel-btn:hover {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* АДАПТИВНОСТЬ */
+@media (max-width: 1024px) {
+  .profile-content {
+    flex-direction: column;
+  }
+  .recent-section {
+    position: static;
+    max-height: none;
+  }
+  .stats-grid {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 24px 16px;
+  }
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  .profile-user-info {
+    flex-direction: column;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .order-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .order-statuses {
+    align-items: flex-start;
+  }
+  .action-buttons {
+    flex-direction: column;
+  }
+  .action-btn {
+    justify-content: center;
+  }
+  .cards-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .add-card-btn {
+    width: 100%;
+  }
+}
+</style>

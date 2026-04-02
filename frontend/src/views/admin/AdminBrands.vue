@@ -4,33 +4,40 @@
     <div class="header-row">
       <div class="header-left">
         <h1>🏭 Управление брендами</h1>
-        <p class="subtitle">База данных производителей и их визуальная идентификация</p>
+        <p class="subtitle">База данных производителей, их страны и логотипы</p>
       </div>
       <div class="stats-badge">
+        <span class="stats-icon">📊</span>
         Всего: <b>{{ filteredBrands.length }}</b>
       </div>
     </div>
 
     <!-- 1. ФОРМА СОЗДАНИЯ -->
     <section class="admin-card create-card">
-      <h3 class="card-title">Добавить новый бренд</h3>
+      <div class="card-header">
+        <h3 class="card-title">✨ Добавить новый бренд</h3>
+        <div class="card-decoration"></div>
+      </div>
       <form @submit.prevent="createBrand" class="admin-form">
         <div class="input-grid">
           <div class="input-group">
-            <label>Название</label>
-            <input v-model="newBrand.name" placeholder="Напр. Bosch" required />
+            <label>📛 Название бренда</label>
+            <input v-model="newBrand.name" placeholder="Напр. Bosch, Brembo..." required />
           </div>
 
           <div class="input-group">
-            <label>Страна</label>
-            <input v-model="newBrand.country" placeholder="Германия" />
+            <label>🌍 Страна происхождения</label>
+            <input v-model="newBrand.country" placeholder="Германия, Италия..." />
           </div>
 
           <div class="input-group">
-            <label>Логотип (Файл или URL)</label>
+            <label>🖼️ Логотип</label>
             <div class="upload-controls">
-              <input type="file" @change="(e) => handleFileUpload(e, 'new')" accept="image/*" class="file-mini" />
-              <input v-model="newBrand.logo_url" placeholder="Или ссылка на лого" class="url-mini" />
+              <label class="file-label">
+                📁 Загрузить
+                <input type="file" @change="(e) => handleFileUpload(e, 'new')" accept="image/*" class="hidden-file" />
+              </label>
+              <input v-model="newBrand.logo_url" placeholder="Или прямая ссылка на лого" class="url-mini" />
             </div>
           </div>
         </div>
@@ -39,10 +46,11 @@
           <label class="custom-checkbox">
             <input type="checkbox" v-model="newBrand.is_popular" />
             <span class="checkmark"></span>
-            Популярный (на главную)
+            <span>⭐ Популярный бренд (выводить на главной)</span>
           </label>
           <button type="submit" :disabled="uploading" class="btn-primary">
-            {{ uploading ? 'Загрузка...' : '✨ Добавить бренд' }}
+            <span class="btn-icon">✨</span>
+            {{ uploading ? 'Загрузка...' : 'Создать бренд' }}
           </button>
         </div>
       </form>
@@ -50,14 +58,18 @@
 
     <!-- 2. УМНАЯ ФИЛЬТРАЦИЯ -->
     <section class="admin-card filter-section">
+      <div class="filter-header">
+        <h3 class="card-title">🔍 Поиск и фильтры</h3>
+        <button @click="resetFilters" class="btn-text-link">Сбросить всё</button>
+      </div>
       <div class="filter-grid">
         <div class="input-group search-group">
-          <label>🔍 Поиск</label>
-          <input v-model="searchQuery" placeholder="Введите имя бренда..." />
+          <label>🔎 Поиск по названию, стране или ID</label>
+          <input v-model="searchQuery" placeholder="Введите название или ID..." />
         </div>
 
         <div class="input-group">
-          <label>Страна</label>
+          <label>🌍 Фильтр по стране</label>
           <select v-model="countryFilter">
             <option value="all">Все страны</option>
             <option v-for="country in uniqueCountries" :key="country" :value="country">{{ country }}</option>
@@ -68,39 +80,40 @@
           <label class="custom-checkbox">
             <input type="checkbox" v-model="popularOnly" />
             <span class="checkmark"></span>
-            Только популярные
+            <span>⭐ Только популярные</span>
           </label>
         </div>
-
-        <button @click="resetFilters" class="btn-secondary">Сбросить всё</button>
       </div>
     </section>
 
     <!-- 3. ТАБЛИЦА БРЕНДОВ -->
     <div class="table-container">
       <div class="table-meta">
-        Найдено: <b>{{ filteredBrands.length }}</b> | Страница {{ currentPage }} из {{ totalPages || 1 }}
+        <span class="meta-icon">📄</span>
+        Страница {{ currentPage }} из {{ totalPages || 1 }}
       </div>
 
       <div class="admin-table-wrapper">
-        <table class="brand-table">
+        <table class="admin-table">
           <thead>
             <tr>
               <th class="col-id">ID</th>
               <th class="col-logo">Логотип</th>
-              <th>Название бренда</th>
+              <th>Название</th>
               <th>Страна</th>
               <th class="text-center">Популярный</th>
               <th class="text-right">Действия</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="brand in paginatedBrands" :key="brand.id">
-              <td class="col-id">#{{ brand.id }}</td>
+            <tr v-for="brand in paginatedBrands" :key="brand.id" class="brand-row">
+              <td class="col-id">
+                <span class="id-badge">#{{ brand.id }}</span>
+              </td>
               
               <td class="col-logo">
-                <div class="logo-preview-box" title="Кликните для смены лого">
-                  <img :src="brand.logo_url || '/assets/images/no-brand.png'" class="table-logo" />
+                <div class="logo-preview-box" title="Кликните для замены логотипа">
+                  <img :src="brand.logo_url || '/assets/images/no-brand.png'" />
                   <input type="file" @change="(e) => handleFileUpload(e, 'edit', brand)" class="hidden-file-input" />
                 </div>
               </td>
@@ -110,7 +123,7 @@
               </td>
 
               <td>
-                <input v-model="brand.country" @change="updateBrand(brand)" class="inline-edit muted-text" />
+                <input v-model="brand.country" @change="updateBrand(brand)" class="inline-edit" placeholder="Указать страну" />
               </td>
 
               <td class="text-center">
@@ -121,7 +134,9 @@
               </td>
 
               <td class="text-right">
-                <button @click="deleteBrand(brand.id)" class="btn-delete">Удалить</button>
+                <button @click="deleteBrand(brand.id)" class="btn-delete-small">
+                  🗑️ Удалить
+                </button>
               </td>
             </tr>
           </tbody>
@@ -143,7 +158,6 @@
 </template>
 
 <script setup>
-/* КОД СКРИПТА ОСТАВЛЯЕМ ТВОЙ ОРИГИНАЛЬНЫЙ (логика не меняется) */
 import { ref, onMounted, reactive, computed, watch } from 'vue';
 import axios from 'axios';
 
@@ -185,7 +199,10 @@ const handleFileUpload = async (event, mode, target = null) => {
   try {
     const res = await axios.post('/api/upload/brands', formData);
     if (mode === 'new') newBrand.logo_url = res.data.url;
-    else { target.logo_url = res.data.url; await updateBrand(target); }
+    else { 
+      target.logo_url = res.data.url; 
+      await updateBrand(target); 
+    }
   } catch (e) { alert('Ошибка загрузки логотипа'); } 
   finally { uploading.value = false; }
 };
@@ -194,9 +211,14 @@ const filteredBrands = computed(() => {
   let res = [...brands.value];
   if (popularOnly.value) res = res.filter(b => b.is_popular);
   if (countryFilter.value !== 'all') res = res.filter(b => b.country === countryFilter.value);
+  
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim();
-    res = res.filter(b => b.name.toLowerCase().includes(q) || b.country?.toLowerCase().includes(q));
+    res = res.filter(b => 
+      b.name.toLowerCase().includes(q) || 
+      (b.country && b.country.toLowerCase().includes(q)) ||
+      b.id.toString() === q
+    );
   }
   return res;
 });
@@ -214,116 +236,611 @@ const createBrand = async () => {
     const res = await axios.post('/api/admin/brands', newBrand, config);
     brands.value.unshift(res.data);
     Object.assign(newBrand, { name: '', country: '', logo_url: '', is_popular: true });
-    alert('Бренд добавлен');
-  } catch (e) { alert('Ошибка создания'); }
+    alert('Бренд успешно добавлен');
+  } catch (e) { alert('Ошибка при создании'); }
 };
 
 const updateBrand = async (brand) => {
-  try { await axios.put(`/api/admin/brands/${brand.id}`, brand, config); } catch (e) { }
+  try { 
+    await axios.put(`/api/admin/brands/${brand.id}`, brand, config); 
+  } catch (e) {
+    console.error("Ошибка обновления");
+  }
 };
 
 const deleteBrand = async (id) => {
-  if (!confirm('Удалить бренд?')) return;
+  if (!confirm('ВНИМАНИЕ! Удаление бренда может оставить товары без привязки к производителю. Удалить?')) return;
   try {
     await axios.delete(`/api/admin/brands/${id}`, config);
     brands.value = brands.value.filter(b => b.id !== id);
-  } catch (e) { alert('Ошибка удаления'); }
+  } catch (e) { alert('Ошибка при удалении бренда'); }
 };
 
 onMounted(fetchBrands);
 </script>
 
 <style scoped>
+/* ==========================================================================
+   АДМИНКА: УПРАВЛЕНИЕ БРЕНДАМИ – СОВРЕМЕННЫЙ СТИЛЬ (БЕЗ КРАСНЫХ ВЫДЕЛЕНИЙ)
+   ========================================================================== */
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 0 0 var(--primary-light); }
+  70% { box-shadow: 0 0 0 8px rgba(230, 57, 70, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+}
+
 .admin-brands {
-  padding: 40px 20px;
-  animation: fadeIn 0.4s ease-out;
+  padding: 40px 24px;
+  animation: fadeSlideUp 0.5s ease-out;
   color: var(--text-main);
 }
 
 /* ШАПКА */
-.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-h1 { font-size: 2.2rem; font-weight: 800; margin: 0; }
-.subtitle { color: var(--text-muted); margin-top: 5px; }
-.stats-badge { background: var(--primary-light); color: var(--primary); padding: 10px 20px; border-radius: 50px; font-weight: 700; }
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.header-left h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 0 0 6px 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.stats-badge {
+  background: var(--bg-card);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-color);
+  padding: 10px 20px;
+  border-radius: 60px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stats-icon {
+  font-size: 1.2rem;
+}
 
 /* КАРТОЧКИ */
 .admin-card {
-  background-color: var(--bg-card) !important;
-  border: 1px solid var(--border-color) !important;
+  background: var(--bg-card);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 30px;
+  padding: 28px;
+  margin-bottom: 32px;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
   box-shadow: var(--shadow-sm);
-  margin-bottom: 30px;
 }
 
-.card-title { margin-top: 0; margin-bottom: 25px; font-size: 1.25rem; font-weight: 700; }
-
-/* ФОРМЫ И ИНПУТЫ */
-.admin-form input, .filter-section input, .filter-section select {
-  width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color);
-  background-color: var(--bg-input) !important; color: var(--text-main) !important; transition: all 0.2s;
+.admin-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-.input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
-.input-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted) !important; margin-bottom: 8px; text-transform: uppercase; }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 
-.upload-controls { display: flex; flex-direction: column; gap: 8px; }
-.file-mini { font-size: 0.75rem; border: none !important; padding: 0 !important; background: transparent !important; }
-.url-mini { padding: 8px 12px !important; font-size: 0.8rem !important; }
+.card-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-.form-footer { margin-top: 25px; padding-top: 20px; border-top: 1px dashed var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.card-decoration {
+  width: 50px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 3px;
+}
 
-/* КНОПКИ */
-.btn-primary { background-color: var(--primary); color: #fff !important; padding: 14px 30px; border-radius: var(--radius-md); font-weight: 700; border: none; cursor: pointer; }
-.btn-secondary { padding: 12px 20px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; color: var(--text-main); font-weight: 600; }
-.btn-delete { background-color: var(--danger-light); color: var(--danger) !important; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+/* ФОРМА ДОБАВЛЕНИЯ */
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-group label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.input-group input,
+.input-group select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.input-group input:focus,
+.input-group select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+  outline: none;
+  transform: scale(1.01);
+}
+
+.upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.2s;
+}
+
+.file-label:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.hidden-file {
+  display: none;
+}
+
+.url-mini {
+  width: 100%;
+}
+
+.form-footer {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(230, 57, 70, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ФИЛЬТРЫ */
-.filter-section { background-color: var(--bg-input) !important; border-style: dashed !important; }
-.filter-grid { display: grid; grid-template-columns: 2fr 1.5fr 1fr auto; gap: 20px; align-items: flex-end; }
+.filter-section {
+  background: var(--bg-input);
+  border-style: solid;
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr;
+  gap: 24px;
+  align-items: flex-end;
+}
+
+.btn-text-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: underline;
+}
+
+.btn-text-link:hover {
+  transform: translateX(-3px);
+  text-decoration: none;
+}
 
 /* ТАБЛИЦА */
-.table-meta { margin-bottom: 10px; font-size: 0.85rem; color: var(--text-muted); }
-.admin-table-wrapper { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; }
-.brand-table { width: 100%; border-collapse: collapse; }
-.brand-table th { background-color: var(--bg-input) !important; padding: 18px 20px; text-align: left; font-size: 0.75rem; color: var(--text-muted) !important; border-bottom: 2px solid var(--border-color); text-transform: uppercase; }
-.brand-table td { padding: 15px 20px; border-bottom: 1px solid var(--border-color); color: var(--text-main) !important; vertical-align: middle; }
+.table-container {
+  margin-top: 16px;
+}
 
-/* ДЕТАЛИ В ТАБЛИЦЕ */
-.col-id { color: var(--text-muted) !important; font-family: monospace; width: 60px; }
-.col-logo { width: 120px; text-align: center; }
+.table-meta {
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-/* Логотип (всегда на белом для видимости) */
-.logo-preview-box { position: relative; display: inline-block; padding: 5px; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); }
-.table-logo { width: 80px; height: 40px; object-fit: contain; }
-.hidden-file-input { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+.admin-table-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
 
-.inline-edit { background: transparent; border: 1px solid transparent; padding: 6px 10px; border-radius: 6px; color: var(--text-main) !important; width: 100%; }
-.inline-edit:hover { background: var(--bg-input); border-color: var(--border-color); }
-.inline-edit:focus { background: var(--bg-card); border-color: var(--primary); outline: none; }
-.bold { font-weight: 700; }
-.muted-text { color: var(--text-muted) !important; }
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.admin-table th {
+  background: linear-gradient(135deg, var(--primary-light), transparent);
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.admin-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  transition: background 0.2s;
+}
+
+/* Убираем красное выделение при наведении */
+.brand-row:hover td {
+  background: transparent;
+}
+
+.col-id {
+  width: 70px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: monospace;
+}
+
+.id-badge {
+  display: inline-block;
+  font-weight: 800;
+  color: var(--primary);
+  font-family: monospace;
+}
+
+.col-logo {
+  width: 90px;
+  text-align: center;
+}
+
+.logo-preview-box {
+  position: relative;
+  width: 60px;
+  height: 40px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 0 auto;
+}
+
+.logo-preview-box:hover {
+  transform: scale(1.05);
+  border-color: var(--primary);
+}
+
+.logo-preview-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.hidden-file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Редактируемые поля */
+.inline-edit {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--text-main);
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.inline-edit:hover {
+  background: var(--bg-input);
+  border-color: var(--border-color);
+}
+
+.inline-edit:focus {
+  background: var(--bg-card);
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.bold {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+/* Чекбоксы */
+.custom-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.custom-checkbox input {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  display: inline-block;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.custom-checkbox input:checked + .checkmark {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.custom-checkbox input:checked + .checkmark::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.no-text {
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+/* Кнопка удаления (мягкая, без красного фона) */
+.btn-delete-small {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 8px 14px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-delete-small:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+  border-color: var(--danger);
+  transform: translateY(-2px);
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
 
 /* ПАГИНАЦИЯ */
-.pagination-wrapper { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 40px; }
-.p-btn { padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-main); cursor: pointer; }
-.p-numbers { display: flex; gap: 8px; }
-.p-numbers button { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-main); cursor: pointer; font-weight: 700; }
-.p-numbers button.active { background-color: var(--primary); color: #fff; border-color: var(--primary); }
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
 
-/* ЧЕКБОКСЫ */
-.custom-checkbox { display: flex; align-items: center; gap: 10px; cursor: pointer; position: relative; }
-.custom-checkbox input { position: absolute; opacity: 0; }
-.checkmark { height: 22px; width: 22px; background-color: var(--bg-input); border: 2px solid var(--border-color); border-radius: 6px; position: relative; }
-.custom-checkbox input:checked ~ .checkmark { background-color: var(--primary); border-color: var(--primary); }
-.checkmark:after { content: ""; position: absolute; display: none; left: 7px; top: 3px; width: 6px; height: 11px; border: solid white; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
-.custom-checkbox input:checked ~ .checkmark:after { display: block; }
-.no-text { padding: 0; margin: 0 auto; width: 22px; }
+.p-btn {
+  padding: 10px 20px;
+  border-radius: 40px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-/* ТЕМНАЯ ТЕМА ФОРС */
-:deep(body.dark-theme) .admin-card { background-color: #1e293b !important; }
-:deep(body.dark-theme) .inline-edit { color: var(--text-main) !important; }
+.p-btn:hover:not(:disabled) {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
 
-.text-right { text-align: right; }
-.text-center { text-align: center; }
+.p-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.p-numbers {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.p-numbers button {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.p-numbers button:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.p-numbers button.active {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+}
+
+/* АДАПТИВНОСТЬ */
+@media (max-width: 1200px) {
+  .filter-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-brands {
+    padding: 24px 16px;
+  }
+  .header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+  .input-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .form-footer button {
+    width: 100%;
+    justify-content: center;
+  }
+  .pagination-wrapper {
+    flex-direction: column;
+  }
+  .admin-table th,
+  .admin-table td {
+    padding: 12px;
+  }
+}
+
+/* ТЁМНАЯ ТЕМА – ДОПОЛНИТЕЛЬНЫЕ ПРАВКИ */
+body.dark-theme .admin-card {
+  background: rgba(30, 41, 59, 0.95);
+}
+body.dark-theme .file-label:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+body.dark-theme .logo-preview-box {
+  background: rgba(30, 41, 59, 0.8);
+}
 </style>
