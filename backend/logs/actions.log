@@ -738,3 +738,4 @@
 {"id":"1775297159326acqgb","timestamp":"04.04.2026, 18:05:59","type":"ACTION","action":"PUT_REQUEST","message":"Успешный запрос на /api/admin/categories/24","user":{"id":"111","name":"Admin2","role":"admin"},"ip":"::1","details":{}}
 {"id":"1775297170991goqvf","timestamp":"04.04.2026, 18:06:10","type":"ACTION","action":"DELETE_REQUEST","message":"Успешный запрос на /api/storage/categories/1775297158538_47e6b299.jpg","user":{"id":"111","name":"Admin2","role":"admin"},"ip":"::1","details":{}}
 {"id":"1775297171410k6qa7","timestamp":"04.04.2026, 18:06:11","type":"ACTION","action":"DELETE_REQUEST","message":"Успешный запрос на /api/admin/categories/24","user":{"id":"111","name":"Admin2","role":"admin"},"ip":"::1","details":{}}
+{"id":"17753102021507bf0t","timestamp":"04.04.2026, 21:43:22","type":"ACTION","action":"POST_REQUEST","message":"Успешный запрос на /api/feedback/send","user":{"id":"111","name":"Admin2","role":"admin"},"ip":"::1","details":{}}

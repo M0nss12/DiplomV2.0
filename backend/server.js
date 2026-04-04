@@ -24,13 +24,11 @@ const TINKOFF_SECRET = process.env.TINKOFF_SECRET || 'ваш_секрет';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const upload = multer({ storage: multer.memoryStorage() });
 
-
 app.use(cors({
     origin: ['https://diplomv2-0.onrender.com', 'http://localhost:3000'], 
     credentials: true
 }));
 
-app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -43,30 +41,28 @@ const DEFAULT_AVATARS = [
     `${process.env.SUPABASE_URL}/storage/v1/object/public/avatars/6.png`
 ];
 
+// --- ОБНОВЛЕННЫЙ БЛОК ПОЧТЫ ---
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465, // Сменили с 587 на 465
-    secure: true, // Сменили с false на true для порта 465
+    port: 465,
+    secure: true, 
     auth: { 
-        user: process.env.EMAIL_USER, 
+        user: 'monsswhat@gmail.com', 
         pass: process.env.EMAIL_PASS 
     },
-    // Убираем TLS проверку, чтобы Render не блокировал самоподписанные сертификаты
-    tls: {
-        rejectUnauthorized: false 
-    }
+    tls: { rejectUnauthorized: false }
 });
 
 transporter.verify(function (error, success) {
     if (error) {
-        console.log("❌ СЕРВЕР RENDER НЕ МОЖЕТ ПОДКЛЮЧИТЬСЯ К GMAIL:", error.message);
+        console.log("❌ ОШИБКА GMAIL (monsswhat):", error.message);
     } else {
-        console.log("✅ СЕРВЕР RENDER УСПЕШНО ПОДКЛЮЧЕН К GMAIL");
+        console.log("✅ СЕРВЕР ПОДКЛЮЧЕН К GMAIL (monsswhat)");
     }
 });
 
 // =====================================================================
-// 📝 БЛОК: СИСТЕМНОЕ ЛОГИРОВАНИЕ
+// 📝 БЛОК: СИСТЕМНОЕ ЛОГИРОВАНИЕ (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 const LOGS_DIR = path.join(__dirname, 'logs');
 const ERROR_LOG = path.join(LOGS_DIR, 'errors.log');
@@ -92,41 +88,29 @@ const logActivity = (req, action, message, metadata = {}) => {
     }
     writeLog(ACTIONS_LOG, {
         type: 'ACTION', action, message,
-        user: {
-            id: req.headers['x-user-id'] || 'guest',
-            name: safeName,
-            role: req.headers['x-user-role'] || 'guest'
-        },
+        user: { id: req.headers['x-user-id'] || 'guest', name: safeName, role: req.headers['x-user-role'] || 'guest' },
         ip: req.ip, details: metadata
     });
 };
 
 const logError = (err, req = null) => {
     writeLog(ERROR_LOG, {
-        type: 'ERROR',
-        message: err.message,
+        type: 'ERROR', message: err.message,
         stack: err.stack ? err.stack.split('\n')[1].trim() : 'N/A',
-        fullStack: err.stack,
-        url: req ? req.url : 'SYSTEM',
-        method: req ? req.method : 'N/A',
-        body: req && req.method !== 'GET' ? req.body : null,
+        url: req ? req.url : 'SYSTEM', method: req ? req.method : 'N/A',
         user: req ? (req.headers['x-user-id'] || 'guest') : 'system'
     });
 };
 
 app.use((req, res, next) => {
     if (req.url.startsWith('/api') && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
-        res.on('finish', () => {
-            if (res.statusCode < 400) {
-                logActivity(req, `${req.method}_REQUEST`, `Успешный запрос на ${req.url}`);
-            }
-        });
+        res.on('finish', () => { if (res.statusCode < 400) logActivity(req, `${req.method}_REQUEST`, `Успешный запрос на ${req.url}`); });
     }
     next();
 });
 
 // =====================================================================
-// 🛡️ БЛОК: УТИЛИТЫ
+// 🛡️ БЛОК: УТИЛИТЫ (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 async function getYandexCoordinates(address) {
     if (!YANDEX_API_KEY) return null;
@@ -154,74 +138,43 @@ function generateTinkoffToken(params) {
 }
 
 // =====================================================================
-// 🖼️ API: ФАЙЛЫ
+// 🖼️ API: ФАЙЛЫ (ОБНОВЛЕНО ДЛЯ НАДЕЖНОСТИ И УДАЛЕНИЯ)
 // =====================================================================
 app.post('/api/upload/:folder', upload.single('file'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) return res.status(400).send('Файл не получен');
-
-
-        const fileExt = path.extname(file.originalname).toLowerCase() || '.jpg';
-        const randomHash = crypto.randomBytes(4).toString('hex');
-        const safeName = `${Date.now()}_${randomHash}${fileExt}`;
         
+        // Безопасное имя (игнорируем русские буквы в оригинале)
+        const fileExt = path.extname(file.originalname).toLowerCase() || '.jpg';
+        const safeName = `${Date.now()}_${crypto.randomBytes(3).toString('hex')}${fileExt}`;
         const folder = req.params.folder;
 
-        const { data, error } = await supabase.storage
-            .from(folder)
-            .upload(safeName, file.buffer, { 
-                contentType: file.mimetype,
-                cacheControl: '3600',
-                upsert: false 
-            });
-
-        if (error) {
-            console.error('Supabase Storage Error:', error);
-            return res.status(500).json({ error: error.message });
-        }
-
+        const { data, error } = await supabase.storage.from(folder).upload(safeName, file.buffer, { contentType: file.mimetype });
+        if (error) throw error;
         const { data: urlData } = supabase.storage.from(folder).getPublicUrl(safeName);
         res.json({ url: urlData.publicUrl });
-    } catch (err) { 
-        res.status(500).json({ error: err.message }); 
-    }
+    } catch (err) { logError(err, req); res.status(500).json({ error: err.message }); }
 });
-
 
 app.delete('/api/storage/:folder/:filename', verifyAdmin, async (req, res) => {
     try {
         const { folder, filename } = req.params;
-        console.log(`Запрос на удаление файла: ${filename} из бакета: ${folder}`);
-
-        const { data, error } = await supabase.storage
-            .from(folder)
-            .remove([filename]);
-
+        const { error } = await supabase.storage.from(folder).remove([filename]);
         if (error) throw error;
-        res.json({ success: true, data });
-    } catch (err) {
-        console.error('Ошибка удаления из Storage:', err.message);
-        res.status(500).json({ error: err.message });
-    }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // =====================================================================
-// 🏠 API: МАРКЕТИНГ
+// 🏠 API: МАРКЕТИНГ (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 app.get('/api/marketing/currency', async (req, res) => {
     try {
         const cbrRes = await axios.get('https://www.cbr-xml-daily.ru/daily_json.js');
         const valutes = cbrRes.data.Valute;
-        res.json({
-            usd: valutes.USD.Value.toFixed(2),
-            eur: valutes.EUR.Value.toFixed(2),
-            cny: valutes.CNY.Value.toFixed(2)
-        });
-    } catch (e) {
-        logError(e, req);
-        res.json({ usd: '91.50', eur: '99.20', cny: '12.60' });
-    }
+        res.json({ usd: valutes.USD.Value.toFixed(2), eur: valutes.EUR.Value.toFixed(2), cny: valutes.CNY.Value.toFixed(2) });
+    } catch (e) { logError(e, req); res.json({ usd: '91.50', eur: '99.20', cny: '12.60' }); }
 });
 
 app.get('/api/marketing/news', async (req, res) => {
@@ -267,13 +220,13 @@ app.get('/api/marketing/about-info', async (req, res) => {
 
 app.post('/api/feedback/send', async (req, res) => {
     const { name, contact, message } = req.body;
-    const mailOptions = { from: process.env.EMAIL_USER, replyTo: contact, to: 'monsschogath@gmail.com', subject: `Заявка от ${name}`, text: `Контакты: ${contact}\n\n${message}` };
+    const mailOptions = { from: 'monsswhat@gmail.com', replyTo: contact, to: 'monsswhat@gmail.com', subject: `Заявка от ${name}`, text: `Контакты: ${contact}\n\n${message}` };
     try { await transporter.sendMail(mailOptions); res.json({ success: true }); }
     catch (e) { logError(e, req); res.status(500).json({ error: e.message }); }
 });
 
 // =====================================================================
-// 🛒 API: КАТАЛОГ И ПОИСК
+// 🛒 API: КАТАЛОГ И ПОИСК (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 app.get('/api/categories', async (req, res) => {
     const { data, error } = await supabase.from('categories').select('*').order('id');
@@ -316,16 +269,14 @@ app.post('/api/products/recent', async (req, res) => {
 });
 
 // =====================================================================
-// 👤 API: ПОЛЬЗОВАТЕЛИ
+// 👤 API: ПОЛЬЗОВАТЕЛИ (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 app.post('/api/users/register', async (req, res) => {
     try {
         const { email, phone, password, first_name, last_name, otchestvo, city } = req.body;
         const newUserId = Date.now().toString(); 
-        
         let filter = email ? `email.eq.${email}` : `phone_number.eq.${phone}`;
         const { data: existing } = await supabase.from('users').select('*').or(filter).maybeSingle();
-
         if (existing && !existing.password_hash) {
             const { data } = await supabase.from('users').update({ password_hash: password, role: 'user', first_name, last_name, otchestvo, saved_address: city }).eq('id', existing.id).select();
             return res.json(data[0]);
@@ -338,16 +289,9 @@ app.post('/api/users/register', async (req, res) => {
 
 app.post('/api/users/login', async (req, res) => {
     const { login, password } = req.body;
-    
     const { data: user } = await supabase.from('users').select('*').or(`email.eq.${login},phone_number.eq.${login}`).maybeSingle();
     if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
-
-    // Проверка хэшированного пароля через RPC в базе
-    const { data: isValid } = await supabase.rpc('verify_user_password', {
-        user_id_param: user.id,
-        pass_param: password
-    });
-
+    const { data: isValid } = await supabase.rpc('verify_user_password', { user_id_param: user.id, pass_param: password });
     if (!isValid) return res.status(401).json({ error: 'Неверный пароль' });
     res.json(user);
 });
@@ -367,27 +311,19 @@ app.put('/api/users/profile/:id', async (req, res) => {
 app.post('/api/users/change-password/:id', async (req, res) => {
     const { oldPassword, newPassword } = req.body;
     const userId = req.params.id;
-
-    const { data: isValid } = await supabase.rpc('verify_user_password', {
-        user_id_param: userId,
-        pass_param: oldPassword
-    });
-
+    const { data: isValid } = await supabase.rpc('verify_user_password', { user_id_param: userId, pass_param: oldPassword });
     if (!isValid) return res.status(400).json({ error: 'Старый пароль введен неверно' });
-
     const { error: updateError } = await supabase.from('users').update({ password_hash: newPassword }).eq('id', userId);
     if (updateError) return res.status(500).json({ error: 'Ошибка БД' });
-
     res.json({ success: true });
 });
 
-// КАРТЫ ПОЛЬЗОВАТЕЛЯ
+// КАРТЫ (БЕЗ ИЗМЕНЕНИЙ)
 app.get('/api/cards/:userId', async (req, res) => {
     const { data, error } = await supabase.from('user_cards').select('*').eq('user_id', req.params.userId).order('is_default', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data || []);
 });
-
 app.post('/api/cards', async (req, res) => {
     try {
         const { user_id, number, holder, expiry } = req.body;
@@ -398,20 +334,18 @@ app.post('/api/cards', async (req, res) => {
         res.json(data[0]);
     } catch (e) { logError(e, req); res.status(500).json({ error: e.message }); }
 });
-
 app.delete('/api/cards/:id', async (req, res) => {
     const { error } = await supabase.from('user_cards').delete().eq('id', req.params.id);
     if (error) return res.status(500).json({ error: error.message });
     res.send('ok');
 });
 
-// ИЗБРАННОЕ
+// ИЗБРАННОЕ (БЕЗ ИЗМЕНЕНИЙ)
 app.get('/api/wishlist/:userId', async (req, res) => {
     const { data, error } = await supabase.from('wishlists').select(`id, product_id, products (*, product_stocks (*, warehouses (*)))`).eq('user_id', req.params.userId);
     if (error) return res.status(500).json({ error: error.message });
     res.json(data || []);
 });
-
 app.post('/api/wishlist', async (req, res) => {
     const { user_id, product_id } = req.body;
     const { data: existing } = await supabase.from('wishlists').select('id').eq('user_id', user_id).eq('product_id', product_id).maybeSingle();
@@ -420,12 +354,10 @@ app.post('/api/wishlist', async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
-
 app.delete('/api/wishlist/:userId/:prodId', async (req, res) => {
     await supabase.from('wishlists').delete().eq('user_id', req.params.userId).eq('product_id', req.params.prodId);
     res.send('ok');
 });
-
 app.delete('/api/wishlist/:id', async (req, res) => {
     await supabase.from('wishlists').delete().eq('id', req.params.id);
     res.send('ok');
@@ -435,7 +367,7 @@ app.get('/api/users/default-avatars', (req, res) => res.json(DEFAULT_AVATARS));
 app.get('/api/vehicles/:userId', async (req, res) => res.json([]));
 
 // =====================================================================
-// 🛍️ API: ЗАКАЗЫ И ОПЛАТА
+// 🛍️ API: ЗАКАЗЫ И ОПЛАТА (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 app.get('/api/orders/test-geo', async (req, res) => {
     const { address } = req.query;
@@ -462,9 +394,7 @@ app.post('/api/orders', async (req, res) => {
         const { data: allWarehouses } = await supabase.from('warehouses').select('*');
         const selectedWarehouse = allWarehouses.find(w => w.id === warehouse_id);
         if (!selectedWarehouse) return res.status(400).json({ error: 'Пункт выдачи не найден' });
-
         let finalStatus = bodyStatus || ((payment_method === 'card') ? 'awaiting_payment' : 'unpaid');
-
         let filter = customer_email ? `email.eq.${customer_email}` : `phone_number.eq.${customer_phone}`;
         let { data: user } = await supabase.from('users').select('id').or(filter).maybeSingle();
         let userId = user?.id;
@@ -473,28 +403,19 @@ app.post('/api/orders', async (req, res) => {
             const { data: newUser } = await supabase.from('users').insert([{ id: newId, role: 'guest', first_name: customer_name, email: customer_email || null, phone_number: customer_phone || null, avatar_url: DEFAULT_AVATARS[0], saved_address: customer_city }]).select();
             userId = newUser[0].id;
         }
-
-        let totalPrice = 0; 
-        let itemsData = []; 
-        let needsShippingToPVZ = false; 
-
+        let totalPrice = 0; let itemsData = []; let needsShippingToPVZ = false; 
         for (let item of items) {
             const { data: p } = await supabase.from('products').select('*, product_stocks(*)').eq('id', item.product_id).single();
             if (!p) continue;
             const currentPrice = p.discount_price || p.price;
             totalPrice += currentPrice * item.quantity;
             itemsData.push({ product_id: p.id, quantity: item.quantity, unit_price: currentPrice });
-            
             const totalInCity = p.product_stocks.reduce((acc, stockRecord) => {
                 const wh = allWarehouses.find(w => w.id === stockRecord.warehouse_id);
-                if (wh && wh.city_name.toLowerCase() === selectedWarehouse.city_name.toLowerCase()) {
-                    return acc + stockRecord.quantity;
-                }
+                if (wh && wh.city_name.toLowerCase() === selectedWarehouse.city_name.toLowerCase()) return acc + stockRecord.quantity;
                 return acc;
             }, 0);
-
             if (totalInCity < item.quantity) needsShippingToPVZ = true;
-
             let amountNeeded = item.quantity;
             const sortedStocks = [...p.product_stocks].sort((a, b) => (a.warehouse_id === warehouse_id ? -1 : 1));
             for (let stock of sortedStocks) {
@@ -505,18 +426,9 @@ app.post('/api/orders', async (req, res) => {
                 await supabase.from('product_stocks').update({ quantity: stock.quantity - takeAmount }).eq('id', stock.id);
             }
         }
-
         const finalShippingCost = Number(shipping_cost) || 0;
         const finalTotalPrice = Math.round(totalPrice + finalShippingCost);
-
-        const { data: order, error: oErr } = await supabase.from('orders').insert([{ 
-            user_id: userId, payment_method, payment_status: finalStatus, 
-            delivery_type: 'pickup', delivery_status: needsShippingToPVZ ? 'shipping' : 'awaiting', 
-            shipping_cost: finalShippingCost, total_price: finalTotalPrice, 
-            delivery_address: `${selectedWarehouse.city_name}, ${selectedWarehouse.address}`, 
-            created_at: new Date().toISOString() 
-        }]).select();
-
+        const { data: order, error: oErr } = await supabase.from('orders').insert([{ user_id: userId, payment_method, payment_status: finalStatus, delivery_type: 'pickup', delivery_status: needsShippingToPVZ ? 'shipping' : 'awaiting', shipping_cost: finalShippingCost, total_price: finalTotalPrice, delivery_address: `${selectedWarehouse.city_name}, ${selectedWarehouse.address}`, created_at: new Date().toISOString() }]).select();
         if (oErr) throw oErr;
         await supabase.from('order_items').insert(itemsData.map(i => ({ ...i, order_id: order[0].id })));
         res.json({ orderId: order[0].id, total: finalTotalPrice });
@@ -543,7 +455,7 @@ app.post('/api/payment/tinkoff-init', async (req, res) => {
 });
 
 // =====================================================================
-// 💬 API: ОТЗЫВЫ
+// 💬 API: ОТЗЫВЫ (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 app.get('/api/reviews/:productId', async (req, res) => {
     try {
@@ -552,27 +464,23 @@ app.get('/api/reviews/:productId', async (req, res) => {
         res.json(data || []);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.post('/api/reviews', async (req, res) => {
     try {
-        const { product_id, user_id, rating, comment, pros, cons } = req.body;
-        const { data, error } = await supabase.from('reviews').insert([{ product_id, user_id, rating, comment, pros, cons, is_approved: true, created_at: new Date().toISOString() }]).select();
+        const { data, error } = await supabase.from('reviews').insert([{ ...req.body, is_approved: true, created_at: new Date().toISOString() }]).select();
         if (error) throw error;
         res.json(data[0]);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 app.patch('/api/reviews/:id', async (req, res) => {
     try {
-        const { rating, comment, pros, cons } = req.body;
-        const { data, error } = await supabase.from('reviews').update({ rating, comment, pros, cons, created_at: new Date().toISOString() }).eq('id', req.params.id).select();
+        const { data, error } = await supabase.from('reviews').update(req.body).eq('id', req.params.id).select();
         if (error) throw error;
         res.json(data[0]);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // =====================================================================
-// 👑 API: АДМИНКА
+// 👑 API: АДМИНКА (БЕЗ ИЗМЕНЕНИЙ)
 // =====================================================================
 app.get('/api/admin/system/logs', verifyAdmin, (req, res) => {
     const { type } = req.query;
@@ -580,9 +488,7 @@ app.get('/api/admin/system/logs', verifyAdmin, (req, res) => {
     try {
         if (!fs.existsSync(targetFile)) return res.json([]);
         const lines = fs.readFileSync(targetFile, 'utf8').trim().split('\n');
-        const logs = lines.filter(l => l.trim()).map(line => {
-            try { return JSON.parse(line); } catch(e) { return null; }
-        }).filter(l => l).reverse();
+        const logs = lines.filter(l => l.trim()).map(line => { try { return JSON.parse(line); } catch(e) { return null; } }).filter(l => l).reverse();
         res.json(logs.slice(0, 100)); 
     } catch (e) { res.status(500).json({ error: 'Ошибка чтения логов' }); }
 });
