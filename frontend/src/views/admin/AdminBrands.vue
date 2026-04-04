@@ -4,7 +4,7 @@
     <div class="header-row">
       <div class="header-left">
         <h1>🏭 Управление брендами</h1>
-        <p class="subtitle">База данных производителей, их страны и логотипы</p>
+        <p class="subtitle">База данных производителей с автоматической очисткой логотипов</p>
       </div>
       <div class="stats-badge">
         <span class="stats-icon">📊</span>
@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <!-- 1. ФОРМА СОЗДАНИЯ -->
+    <!-- 1. ФОРМА ДОБАВЛЕНИЯ -->
     <section class="admin-card create-card">
       <div class="card-header">
         <h3 class="card-title">✨ Добавить новый бренд</h3>
@@ -31,13 +31,17 @@
           </div>
 
           <div class="input-group">
-            <label>🖼️ Логотип</label>
+            <label>🖼️ Логотип бренда</label>
             <div class="upload-controls">
-              <label class="file-label">
-                📁 Загрузить
+              <div v-if="newBrand.logo_url" class="preview-new-logo">
+                <img :src="newBrand.logo_url" @click="previewImage(newBrand.logo_url)" />
+                <button type="button" @click="newBrand.logo_url = ''" class="btn-clear-img" title="Удалить">✕</button>
+              </div>
+              <label v-else class="file-label">
+                📁 Загрузить файл
                 <input type="file" @change="(e) => handleFileUpload(e, 'new')" accept="image/*" class="hidden-file" />
               </label>
-              <input v-model="newBrand.logo_url" placeholder="Или прямая ссылка на лого" class="url-mini" />
+              <input v-model="newBrand.logo_url" placeholder="Или вставьте прямую ссылку" class="url-mini" />
             </div>
           </div>
         </div>
@@ -46,7 +50,7 @@
           <label class="custom-checkbox">
             <input type="checkbox" v-model="newBrand.is_popular" />
             <span class="checkmark"></span>
-            <span>⭐ Популярный бренд (выводить на главной)</span>
+            <span>⭐ Популярный бренд (на главную)</span>
           </label>
           <button type="submit" :disabled="uploading" class="btn-primary">
             <span class="btn-icon">✨</span>
@@ -63,11 +67,10 @@
         <button @click="resetFilters" class="btn-text-link">Сбросить всё</button>
       </div>
       <div class="filter-grid">
-        <div class="input-group search-group">
-          <label>🔎 Поиск по названию, стране или ID</label>
+        <div class="input-group">
+          <label>🔎 Поиск (Название, Страна, ID)</label>
           <input v-model="searchQuery" placeholder="Введите название или ID..." />
         </div>
-
         <div class="input-group">
           <label>🌍 Фильтр по стране</label>
           <select v-model="countryFilter">
@@ -75,7 +78,6 @@
             <option v-for="country in uniqueCountries" :key="country" :value="country">{{ country }}</option>
           </select>
         </div>
-
         <div class="checkbox-group">
           <label class="custom-checkbox">
             <input type="checkbox" v-model="popularOnly" />
@@ -86,7 +88,7 @@
       </div>
     </section>
 
-    <!-- 3. ТАБЛИЦА БРЕНДОВ -->
+    <!-- 3. ТАБЛИЦА БРЕНДОВ (исправленная структура) -->
     <div class="table-container">
       <div class="table-meta">
         <span class="meta-icon">📄</span>
@@ -99,57 +101,54 @@
             <tr>
               <th class="col-id">ID</th>
               <th class="col-logo">Логотип</th>
-              <th>Название</th>
+              <th>Название бренда</th>
               <th>Страна</th>
               <th class="text-center">Популярный</th>
               <th class="text-right">Действия</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="brand in paginatedBrands" :key="brand.id" class="brand-row">
-              <td class="col-id">
-                <span class="id-badge">#{{ brand.id }}</span>
-              </td>
-              
-              <td class="col-logo">
-                <div class="logo-preview-box" title="Кликните для замены логотипа">
-                  <img :src="brand.logo_url || '/assets/images/no-brand.png'" />
-                  <input type="file" @change="(e) => handleFileUpload(e, 'edit', brand)" class="hidden-file-input" />
-                </div>
-              </td>
-
-              <td>
-                <input v-model="brand.name" @change="updateBrand(brand)" class="inline-edit bold" />
-              </td>
-
-              <td>
-                <input v-model="brand.country" @change="updateBrand(brand)" class="inline-edit" placeholder="Указать страну" />
-              </td>
-
-              <td class="text-center">
-                <label class="custom-checkbox no-text">
-                  <input type="checkbox" v-model="brand.is_popular" @change="updateBrand(brand)" />
-                  <span class="checkmark"></span>
-                </label>
-              </td>
-
-              <td class="text-right">
-                <button @click="deleteBrand(brand.id)" class="btn-delete-small">
-                  🗑️ Удалить
-                </button>
-              </td>
-            </tr>
+            <template v-for="brand in paginatedBrands" :key="brand.id">
+              <tr class="brand-row">
+                <td class="col-id">#{{ brand.id }}</td>
+                <td class="col-logo">
+                  <div class="logo-preview-box">
+                    <template v-if="brand.logo_url">
+                      <img :src="brand.logo_url" @click="previewImage(brand.logo_url)" title="Клик для просмотра" />
+                      <button @click="removeExistingLogo(brand)" class="btn-img-delete" title="Удалить логотип">✕</button>
+                    </template>
+                    <label v-else class="upload-mini-btn">
+                      <span>+</span>
+                      <input type="file" @change="(e) => handleFileUpload(e, 'edit', brand)" hidden />
+                    </label>
+                  </div>
+                </td>
+                <td>
+                  <input v-model="brand.name" @change="updateBrand(brand)" class="inline-edit bold" />
+                </td>
+                <td>
+                  <input v-model="brand.country" @change="updateBrand(brand)" class="inline-edit" placeholder="Указать страну" />
+                </td>
+                <td class="text-center">
+                  <label class="custom-checkbox no-text">
+                    <input type="checkbox" v-model="brand.is_popular" @change="updateBrand(brand)" />
+                    <span class="checkmark"></span>
+                  </label>
+                </td>
+                <td class="text-right">
+                  <button @click="deleteBrand(brand)" class="btn-delete-small">🗑️ Удалить</button>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
 
-      <!-- 4. ПАГИНАЦИЯ -->
+      <!-- ПАГИНАЦИЯ -->
       <div v-if="totalPages > 1" class="pagination-wrapper">
         <button @click="currentPage--" :disabled="currentPage === 1" class="p-btn">←</button>
         <div class="p-numbers">
-          <button v-for="p in totalPages" :key="p" @click="currentPage = p" :class="{ active: currentPage === p }">
-            {{ p }}
-          </button>
+          <button v-for="p in totalPages" :key="p" @click="currentPage = p" :class="{ active: currentPage === p }">{{ p }}</button>
         </div>
         <button @click="currentPage++" :disabled="currentPage === totalPages" class="p-btn">→</button>
       </div>
@@ -174,51 +173,95 @@ const itemsPerPage = 20;
 
 const newBrand = reactive({ name: '', country: '', logo_url: '', is_popular: true });
 
-const fetchBrands = async () => {
+const loadData = async () => {
   try {
     const res = await axios.get('/api/admin/brands', config);
     brands.value = res.data;
   } catch (e) { console.error('Ошибка загрузки'); }
 };
 
-const uniqueCountries = computed(() => {
-  const countries = brands.value.map(b => b.country).filter(c => c);
-  return Array.from(new Set(countries)).sort();
-});
+// --- МЕНЕДЖМЕНТ ФАЙЛОВ ---
+const getFilenameFromUrl = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  return parts.pop();
+};
 
-const resetFilters = () => {
-  searchQuery.value = ''; countryFilter.value = 'all'; popularOnly.value = false; currentPage.value = 1;
+const previewImage = (url) => { if (url) window.open(url, '_blank'); };
+
+const removeExistingLogo = async (brand) => {
+  if (!confirm('Удалить логотип физически из хранилища?')) return;
+  const filename = getFilenameFromUrl(brand.logo_url);
+  try {
+    if (filename) await axios.delete(`/api/storage/brands/${filename}`, config);
+    brand.logo_url = null;
+    await updateBrand(brand);
+  } catch (e) { alert('Ошибка при удалении файла'); }
 };
 
 const handleFileUpload = async (event, mode, target = null) => {
   const file = event.target.files[0];
   if (!file) return;
+
   const formData = new FormData();
   formData.append('file', file);
   uploading.value = true;
+
   try {
     const res = await axios.post('/api/upload/brands', formData);
-    if (mode === 'new') newBrand.logo_url = res.data.url;
-    else { 
-      target.logo_url = res.data.url; 
-      await updateBrand(target); 
+    if (mode === 'new') {
+      newBrand.logo_url = res.data.url;
+    } else {
+      if (target.logo_url) {
+        const oldFile = getFilenameFromUrl(target.logo_url);
+        await axios.delete(`/api/storage/brands/${oldFile}`, config).catch(() => {});
+      }
+      target.logo_url = res.data.url;
+      await updateBrand(target);
     }
-  } catch (e) { alert('Ошибка загрузки логотипа'); } 
+  } catch (e) { alert('Ошибка загрузки'); } 
   finally { uploading.value = false; }
 };
+
+// --- CRUD ---
+const createBrand = async () => {
+  try {
+    const res = await axios.post('/api/admin/brands', newBrand, config);
+    brands.value.unshift(res.data);
+    Object.assign(newBrand, { name: '', country: '', logo_url: '', is_popular: true });
+    alert('Бренд создан');
+  } catch (e) { alert('Ошибка создания'); }
+};
+
+const updateBrand = async (brand) => {
+  try { await axios.put(`/api/admin/brands/${brand.id}`, brand, config); } catch (e) { }
+};
+
+const deleteBrand = async (brand) => {
+  if (!confirm('Удалить бренд и его логотип?')) return;
+  try {
+    if (brand.logo_url) {
+      const filename = getFilenameFromUrl(brand.logo_url);
+      await axios.delete(`/api/storage/brands/${filename}`, config).catch(() => {});
+    }
+    await axios.delete(`/api/admin/brands/${brand.id}`, config);
+    brands.value = brands.value.filter(b => b.id !== brand.id);
+  } catch (e) { alert('Ошибка удаления'); }
+};
+
+// --- ФИЛЬТРЫ И ПАГИНАЦИЯ ---
+const uniqueCountries = computed(() => {
+  const countries = brands.value.map(b => b.country).filter(c => c);
+  return Array.from(new Set(countries)).sort();
+});
 
 const filteredBrands = computed(() => {
   let res = [...brands.value];
   if (popularOnly.value) res = res.filter(b => b.is_popular);
   if (countryFilter.value !== 'all') res = res.filter(b => b.country === countryFilter.value);
-  
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim();
-    res = res.filter(b => 
-      b.name.toLowerCase().includes(q) || 
-      (b.country && b.country.toLowerCase().includes(q)) ||
-      b.id.toString() === q
-    );
+    res = res.filter(b => b.name.toLowerCase().includes(q) || b.country?.toLowerCase().includes(q) || b.id.toString() === q);
   }
   return res;
 });
@@ -229,50 +272,26 @@ const paginatedBrands = computed(() => {
   return filteredBrands.value.slice(start, start + itemsPerPage);
 });
 
-watch([searchQuery, countryFilter, popularOnly], () => currentPage.value = 1);
-
-const createBrand = async () => {
-  try {
-    const res = await axios.post('/api/admin/brands', newBrand, config);
-    brands.value.unshift(res.data);
-    Object.assign(newBrand, { name: '', country: '', logo_url: '', is_popular: true });
-    alert('Бренд успешно добавлен');
-  } catch (e) { alert('Ошибка при создании'); }
+const resetFilters = () => {
+  searchQuery.value = '';
+  countryFilter.value = 'all';
+  popularOnly.value = false;
+  currentPage.value = 1;
 };
 
-const updateBrand = async (brand) => {
-  try { 
-    await axios.put(`/api/admin/brands/${brand.id}`, brand, config); 
-  } catch (e) {
-    console.error("Ошибка обновления");
-  }
-};
+watch([searchQuery, countryFilter, popularOnly], () => { currentPage.value = 1; });
 
-const deleteBrand = async (id) => {
-  if (!confirm('ВНИМАНИЕ! Удаление бренда может оставить товары без привязки к производителю. Удалить?')) return;
-  try {
-    await axios.delete(`/api/admin/brands/${id}`, config);
-    brands.value = brands.value.filter(b => b.id !== id);
-  } catch (e) { alert('Ошибка при удалении бренда'); }
-};
-
-onMounted(fetchBrands);
+onMounted(loadData);
 </script>
 
 <style scoped>
 /* ==========================================================================
-   АДМИНКА: УПРАВЛЕНИЕ БРЕНДАМИ – СОВРЕМЕННЫЙ СТИЛЬ (БЕЗ КРАСНЫХ ВЫДЕЛЕНИЙ)
+   АДМИНКА: УПРАВЛЕНИЕ БРЕНДАМИ – ПРЕМИУМ СТИЛЬ
    ========================================================================== */
 
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulseGlow {
-  0% { box-shadow: 0 0 0 0 var(--primary-light); }
-  70% { box-shadow: 0 0 0 8px rgba(230, 57, 70, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
 }
 
 .admin-brands {
@@ -366,7 +385,7 @@ onMounted(fetchBrands);
   border-radius: 3px;
 }
 
-/* ФОРМА ДОБАВЛЕНИЯ */
+/* ФОРМА СОЗДАНИЯ */
 .input-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -443,6 +462,41 @@ onMounted(fetchBrands);
   width: 100%;
 }
 
+.preview-new-logo {
+  position: relative;
+  width: 80px;
+  height: 50px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  margin-bottom: 8px;
+}
+
+.preview-new-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.btn-clear-img {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 .form-footer {
   margin-top: 20px;
   padding-top: 20px;
@@ -517,6 +571,53 @@ onMounted(fetchBrands);
   text-decoration: none;
 }
 
+.custom-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.custom-checkbox input {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  display: inline-block;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.custom-checkbox input:checked + .checkmark {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.custom-checkbox input:checked + .checkmark::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.no-text {
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
 /* ТАБЛИЦА */
 .table-container {
   margin-top: 16px;
@@ -564,21 +665,13 @@ onMounted(fetchBrands);
   transition: background 0.2s;
 }
 
-/* Убираем красное выделение при наведении */
 .brand-row:hover td {
-  background: transparent;
+  background: var(--primary-light);
 }
 
 .col-id {
   width: 70px;
   font-weight: 700;
-  color: var(--primary);
-  font-family: monospace;
-}
-
-.id-badge {
-  display: inline-block;
-  font-weight: 800;
   color: var(--primary);
   font-family: monospace;
 }
@@ -593,15 +686,14 @@ onMounted(fetchBrands);
   width: 60px;
   height: 40px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
+  overflow: visible;
   margin: 0 auto;
+  transition: all 0.2s;
 }
 
 .logo-preview-box:hover {
@@ -613,16 +705,48 @@ onMounted(fetchBrands);
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  cursor: zoom-in;
 }
 
-.hidden-file-input {
-  position: absolute;
-  top: 0;
-  left: 0;
+.upload-mini-btn {
   width: 100%;
   height: 100%;
-  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--text-muted);
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-mini-btn:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.btn-img-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+.btn-img-delete:hover {
+  transform: scale(1.1);
+  background: var(--danger-hover);
 }
 
 /* Редактируемые поля */
@@ -653,55 +777,7 @@ onMounted(fetchBrands);
   font-size: 0.95rem;
 }
 
-/* Чекбоксы */
-.custom-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-.custom-checkbox input {
-  display: none;
-}
-
-.checkmark {
-  width: 20px;
-  height: 20px;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color);
-  border-radius: 6px;
-  display: inline-block;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.custom-checkbox input:checked + .checkmark {
-  background: var(--primary);
-  border-color: var(--primary);
-}
-
-.custom-checkbox input:checked + .checkmark::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.no-text {
-  justify-content: center;
-  padding: 0;
-  margin: 0;
-}
-
-/* Кнопка удаления (мягкая, без красного фона) */
+/* Кнопка удаления */
 .btn-delete-small {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -833,7 +909,7 @@ onMounted(fetchBrands);
   }
 }
 
-/* ТЁМНАЯ ТЕМА – ДОПОЛНИТЕЛЬНЫЕ ПРАВКИ */
+/* ТЁМНАЯ ТЕМА */
 body.dark-theme .admin-card {
   background: rgba(30, 41, 59, 0.95);
 }
@@ -841,6 +917,9 @@ body.dark-theme .file-label:hover {
   background: rgba(99, 102, 241, 0.2);
 }
 body.dark-theme .logo-preview-box {
-  background: rgba(30, 41, 59, 0.8);
+  background: #1e293b;
+}
+body.dark-theme .preview-new-logo {
+  background: #1e293b;
 }
 </style>

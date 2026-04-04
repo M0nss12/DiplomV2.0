@@ -160,12 +160,50 @@ app.post('/api/upload/:folder', upload.single('file'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) return res.status(400).send('Файл не получен');
-        const fileName = `${Date.now()}_${file.originalname}`;
-        const { error } = await supabase.storage.from(req.params.folder).upload(fileName, file.buffer, { contentType: file.mimetype });
+
+
+        const fileExt = path.extname(file.originalname).toLowerCase() || '.jpg';
+        const randomHash = crypto.randomBytes(4).toString('hex');
+        const safeName = `${Date.now()}_${randomHash}${fileExt}`;
+        
+        const folder = req.params.folder;
+
+        const { data, error } = await supabase.storage
+            .from(folder)
+            .upload(safeName, file.buffer, { 
+                contentType: file.mimetype,
+                cacheControl: '3600',
+                upsert: false 
+            });
+
+        if (error) {
+            console.error('Supabase Storage Error:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        const { data: urlData } = supabase.storage.from(folder).getPublicUrl(safeName);
+        res.json({ url: urlData.publicUrl });
+    } catch (err) { 
+        res.status(500).json({ error: err.message }); 
+    }
+});
+
+
+app.delete('/api/storage/:folder/:filename', verifyAdmin, async (req, res) => {
+    try {
+        const { folder, filename } = req.params;
+        console.log(`Запрос на удаление файла: ${filename} из бакета: ${folder}`);
+
+        const { data, error } = await supabase.storage
+            .from(folder)
+            .remove([filename]);
+
         if (error) throw error;
-        const { data } = supabase.storage.from(req.params.folder).getPublicUrl(fileName);
-        res.json({ url: data.publicUrl });
-    } catch (err) { logError(err, req); res.status(500).json({ error: err.message }); }
+        res.json({ success: true, data });
+    } catch (err) {
+        console.error('Ошибка удаления из Storage:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // =====================================================================

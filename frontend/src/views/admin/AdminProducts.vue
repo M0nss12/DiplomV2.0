@@ -4,7 +4,7 @@
     <div class="header-row">
       <div class="header-left">
         <h1>📦 Управление товарами</h1>
-        <p class="subtitle">Полный каталог запчастей, аксессуаров и расходников</p>
+        <p class="subtitle">Каталог запчастей</p>
       </div>
       <div class="stats-badge">
         <span class="stats-icon">📊</span>
@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <!-- 1. ФОРМА ДОБАВЛЕНИЯ ТОВАРА -->
+    <!-- 1. ФОРМА ДОБАВЛЕНИЯ -->
     <section class="admin-card create-card">
       <div class="card-header">
         <h3 class="card-title">✨ Добавить новый товар</h3>
@@ -30,7 +30,7 @@
           </div>
           <div class="input-group">
             <label>💰 Цена (₽)</label>
-            <input v-model="newProduct.price" type="number" placeholder="0" required />
+            <input v-model.number="newProduct.price" type="number" placeholder="0" required />
           </div>
           <div class="input-group">
             <label>📂 Категория</label>
@@ -49,43 +49,47 @@
           <div class="input-group">
             <label>⚖️ Вес (кг) / 🛡️ Гарантия (мес)</label>
             <div style="display: flex; gap: 10px;">
-              <input v-model="newProduct.weight_kg" type="number" step="0.1" placeholder="Вес" style="width: 50%" />
-              <input v-model="newProduct.warranty_months" type="number" placeholder="Гарантия" style="width: 50%" />
+              <input v-model.number="newProduct.weight_kg" type="number" step="0.1" placeholder="Вес" style="width: 50%" />
+              <input v-model.number="newProduct.warranty_months" type="number" placeholder="Гарантия" style="width: 50%" />
             </div>
           </div>
           <div class="input-group" style="grid-column: span 2;">
             <label>📝 Описание</label>
-            <textarea v-model="newProduct.description" placeholder="Краткое описание товара..." rows="2"></textarea>
+            <textarea v-model="newProduct.description" placeholder="Описание товара..." rows="2"></textarea>
           </div>
+          
           <div class="input-group">
             <label>🖼️ Изображение</label>
             <div class="upload-controls">
-              <label class="file-label">
-                📁 Загрузить
+              <div v-if="newProduct.image_url" class="preview-new-img">
+                <img :src="newProduct.image_url" @click="previewImage(newProduct.image_url)" />
+                <button type="button" @click="removePhotoFromNew" class="btn-clear-img" title="Удалить">✕</button>
+              </div>
+              <label v-else class="file-label">
+                📁 Загрузить фото
                 <input type="file" @change="uploadPhoto" accept="image/*" class="hidden-file" />
               </label>
-              <input v-model="newProduct.image_url" placeholder="Или URL" class="url-mini" />
+              <input v-model="newProduct.image_url" placeholder="Или вставьте прямую ссылку" class="url-mini" />
             </div>
           </div>
         </div>
         <div class="form-footer">
           <button type="submit" :disabled="uploading" class="btn-primary">
-            <span class="btn-icon">✨</span>
-            {{ uploading ? 'Загрузка...' : 'Создать товар' }}
+            {{ uploading ? 'Загрузка...' : '✨ Создать товар' }}
           </button>
         </div>
       </form>
     </section>
 
-    <!-- 2. ФИЛЬТРЫ И СОРТИРОВКА -->
+    <!-- 2. ФИЛЬТРЫ -->
     <section class="admin-card filter-section">
       <div class="filter-header">
-        <h3 class="card-title">🔍 Фильтры и сортировка</h3>
+        <h3 class="card-title">🔍 Поиск и фильтрация</h3>
         <button @click="resetFilters" class="btn-text-link">Сбросить всё</button>
       </div>
       <div class="filter-grid">
-        <div class="input-group search-group">
-          <label>🔎 Поиск</label>
+        <div class="input-group">
+          <label>🔎 Поиск по всему</label>
           <input v-model="searchQuery" placeholder="Название, артикул или ID..." />
         </div>
         <div class="input-group">
@@ -106,9 +110,8 @@
           <label>📊 Сортировка</label>
           <select v-model="filters.sort">
             <option value="new">Сначала новые</option>
-            <option value="price-asc">По возрастанию цены</option>
-            <option value="price-desc">По убыванию цены</option>
-            <option value="name">По алфавиту</option>
+            <option value="price-asc">Дешевые сверху</option>
+            <option value="price-desc">Дорогие сверху</option>
           </select>
         </div>
       </div>
@@ -121,10 +124,11 @@
       </div>
     </section>
 
-    <!-- 3. ТАБЛИЦА ТОВАРОВ С АККОРДЕОНОМ -->
+    <!-- 3. ТАБЛИЦА ТОВАРОВ -->
     <div class="table-container">
       <div class="table-meta">
-        <span class="meta-icon">📄</span> Показана страница {{ currentPage }} из {{ totalPages || 1 }}
+        <span class="meta-icon">📄</span>
+        Страница {{ currentPage }} из {{ totalPages || 1 }}
       </div>
 
       <div class="admin-table-wrapper">
@@ -133,22 +137,29 @@
             <tr>
               <th class="col-id">ID</th>
               <th class="col-photo">Фото</th>
-              <th>Инфо о товаре</th>
+              <th>Данные товара</th>
               <th>Категория / Бренд</th>
               <th>Цена (₽)</th>
               <th class="text-right">Действия</th>
             </tr>
           </thead>
           <tbody v-for="p in paginatedProducts" :key="p.id">
-            <!-- Основная строка -->
             <tr class="product-row">
               <td class="col-id">#{{ p.id }}</td>
+              
               <td class="col-photo">
-                <div class="product-img-box" title="Нажмите, чтобы сменить фото">
-                  <img :src="p.image_url" class="table-img" @error="p.image_url = '/assets/images/no-photo.png'" />
-                  <input type="file" @change="(e) => uploadPhotoToExisting(e, p)" class="hidden-file-input" />
+                <div class="product-img-box">
+                  <template v-if="p.image_url">
+                    <img :src="p.image_url" @click="previewImage(p.image_url)" title="Клик для просмотра" />
+                    <button @click="removeExistingPhoto(p)" class="btn-img-delete" title="Удалить фото из облака">✕</button>
+                  </template>
+                  <label v-else class="upload-mini-btn">
+                    <span>+</span>
+                    <input type="file" @change="(e) => uploadPhotoToExisting(e, p)" hidden />
+                  </label>
                 </div>
               </td>
+              
               <td>
                 <input v-model="p.name" @change="updateProduct(p)" class="inline-edit bold" />
                 <div class="sku-row">
@@ -156,6 +167,7 @@
                   <input v-model="p.sku" @change="updateProduct(p)" class="inline-edit mini" />
                 </div>
               </td>
+
               <td>
                 <select v-model="p.category_id" @change="updateProduct(p)" class="table-select">
                   <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -165,27 +177,27 @@
                   <option v-for="b in brands" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
               </td>
+
               <td>
                 <div class="price-edit-row">
                   <input v-model.number="p.price" type="number" @change="updateProduct(p)" class="inline-edit price-val" />
                   <span class="curr">₽</span>
                 </div>
-                <div class="discount-edit-row" v-if="p.discount_price !== null && p.discount_price !== ''">
+                <div class="discount-edit-row" v-if="p.discount_price !== null">
                   <span class="muted">Скидка:</span>
                   <input v-model.number="p.discount_price" type="number" @change="updateProduct(p)" class="inline-edit discount-val" />
-                  <button @click="p.discount_price = null; updateProduct(p)" title="Удалить скидку" class="remove-discount">❌</button>
+                  <button @click="p.discount_price = null; updateProduct(p)" class="remove-discount">✕</button>
                 </div>
                 <div v-else class="add-discount" @click="p.discount_price = 0">➕ Добавить скидку</div>
               </td>
-              <td class="text-right actions-cell">
-                <button @click="toggleDetails(p.id)" class="btn-secondary-small">
-                  {{ expandedRow === p.id ? 'Скрыть 🔼' : 'Детали ⚙️' }}
-                </button>
+
+              <td class="text-right">
+                <button @click="toggleDetails(p.id)" class="btn-secondary-small">⚙️</button>
                 <button @click="deleteProduct(p.id)" class="btn-delete-small">🗑️</button>
               </td>
             </tr>
 
-            <!-- Скрытая строка с дополнительными полями -->
+            <!-- Аккордеон деталей -->
             <tr v-if="expandedRow === p.id" class="details-row">
               <td colspan="6">
                 <div class="details-panel">
@@ -199,7 +211,7 @@
                   </div>
                   <div class="detail-field full-width">
                     <label>📝 Описание:</label>
-                    <textarea v-model="p.description" @change="updateProduct(p)" class="detail-textarea" rows="2"></textarea>
+                    <textarea v-model="p.description" @change="updateProduct(p)" class="detail-textarea"></textarea>
                   </div>
                 </div>
               </td>
@@ -208,15 +220,13 @@
         </table>
       </div>
 
-      <!-- 4. ПАГИНАЦИЯ -->
+      <!-- ПАГИНАЦИЯ -->
       <div v-if="totalPages > 1" class="pagination-wrapper">
-        <button @click="currentPage--" :disabled="currentPage === 1" class="p-btn">← Назад</button>
+        <button @click="currentPage--" :disabled="currentPage === 1" class="p-btn">←</button>
         <div class="p-numbers">
-          <button v-for="page in totalPages" :key="page" @click="currentPage = page" :class="{ active: currentPage === page }">
-            {{ page }}
-          </button>
+          <button v-for="page in totalPages" :key="page" @click="currentPage = page" :class="{ active: currentPage === page }">{{ page }}</button>
         </div>
-        <button @click="currentPage++" :disabled="currentPage === totalPages" class="p-btn">Вперед →</button>
+        <button @click="currentPage++" :disabled="currentPage === totalPages" class="p-btn">→</button>
       </div>
     </div>
   </div>
@@ -234,21 +244,12 @@ const categories = ref([]);
 const brands = ref([]);
 const searchQuery = ref('');
 const uploading = ref(false);
-
 const currentPage = ref(1);
 const itemsPerPage = 20;
-
 const expandedRow = ref(null);
-const toggleDetails = (id) => {
-  expandedRow.value = expandedRow.value === id ? null : id;
-};
 
-const filters = reactive({
-  categoryId: 'all',
-  brandId: 'all',
-  onlyDiscount: false,
-  sort: 'new'
-});
+const filters = reactive({ categoryId: 'all', brandId: 'all', onlyDiscount: false, sort: 'new' });
+const newProduct = reactive({ name: '', sku: '', price: 0, category_id: null, brand_id: null, description: '', image_url: '', discount_price: null, weight_kg: null, warranty_months: 12 });
 
 const loadData = async () => {
   try {
@@ -260,49 +261,29 @@ const loadData = async () => {
     products.value = pRes.data;
     categories.value = cRes.data;
     brands.value = bRes.data;
-  } catch (e) {
-    alert('Ошибка при загрузке данных');
-  }
+  } catch (e) { alert('Ошибка загрузки'); }
 };
 
-const resetFilters = () => {
-  searchQuery.value = '';
-  filters.categoryId = 'all';
-  filters.brandId = 'all';
-  filters.onlyDiscount = false;
-  filters.sort = 'new';
-  currentPage.value = 1;
+// --- МЕНЕДЖМЕНТ ФОТО ---
+const getFilenameFromUrl = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  return parts.pop();
 };
 
-const filteredProducts = computed(() => {
-  let res = [...products.value];
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase().trim();
-    res = res.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.id.toString() === q);
-  }
-  if (filters.categoryId !== 'all') res = res.filter(p => p.category_id === filters.categoryId);
-  if (filters.brandId !== 'all') res = res.filter(p => p.brand_id === filters.brandId);
-  if (filters.onlyDiscount) res = res.filter(p => p.discount_price && p.discount_price > 0);
-  if (filters.sort === 'price-asc') res.sort((a, b) => (a.discount_price || a.price) - (b.discount_price || b.price));
-  else if (filters.sort === 'price-desc') res.sort((a, b) => (b.discount_price || b.price) - (a.discount_price || a.price));
-  else if (filters.sort === 'name') res.sort((a, b) => a.name.localeCompare(b.name));
-  else if (filters.sort === 'new') res.sort((a, b) => b.id - a.id);
-  return res;
-});
+const previewImage = (url) => window.open(url, '_blank');
 
-const totalPages = computed(() => Math.ceil(filteredProducts.value.length / itemsPerPage));
-const paginatedProducts = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return filteredProducts.value.slice(start, end);
-});
+const removeExistingPhoto = async (product) => {
+  if (!confirm('Удалить фото физически из хранилища?')) return;
+  const filename = getFilenameFromUrl(product.image_url);
+  try {
+    if (filename) await axios.delete(`/api/storage/products/${filename}`, config);
+    product.image_url = null;
+    await updateProduct(product);
+  } catch (e) { alert('Ошибка удаления файла'); }
+};
 
-watch([searchQuery, filters], () => { currentPage.value = 1; expandedRow.value = null; });
-
-const newProduct = reactive({ 
-  name: '', sku: '', price: 0, category_id: null, brand_id: null, 
-  description: '', image_url: '', discount_price: null, weight_kg: null, warranty_months: 12 
-});
+const removePhotoFromNew = () => { newProduct.image_url = ''; };
 
 const uploadPhoto = async (e) => {
   const file = e.target.files[0];
@@ -321,50 +302,88 @@ const uploadPhotoToExisting = async (e, product) => {
   if (!file) return;
   const formData = new FormData();
   formData.append('file', file);
-  const res = await axios.post('/api/upload/products', formData);
-  product.image_url = res.data.url;
-  await updateProduct(product);
+  try {
+    const res = await axios.post('/api/upload/products', formData);
+    product.image_url = res.data.url;
+    await updateProduct(product);
+  } catch (e) { alert('Ошибка загрузки'); }
 };
 
+// --- CRUD ---
 const createProduct = async () => {
   try {
     const res = await axios.post('/api/admin/products', newProduct, config);
     products.value.unshift(res.data);
     Object.assign(newProduct, { name: '', sku: '', price: 0, category_id: null, brand_id: null, description: '', image_url: '', discount_price: null, weight_kg: null, warranty_months: 12 });
-    alert('Товар добавлен');
-  } catch (e) {
-    alert('Ошибка при создании');
-  }
+    alert('Товар создан');
+  } catch (e) { alert('Ошибка создания'); }
 };
 
 const updateProduct = async (p) => { 
-  try {
-    await axios.put(`/api/admin/products/${p.id}`, p, config); 
-  } catch(e) {
-    console.error("Ошибка обновления", e);
-  }
+  try { await axios.put(`/api/admin/products/${p.id}`, p, config); } catch(e) { }
 };
 
 const deleteProduct = async (id) => {
-  if (!confirm('Удалить товар навсегда?')) return;
-  await axios.delete(`/api/admin/products/${id}`, config);
-  products.value = products.value.filter(p => p.id !== id);
+  const product = products.value.find(p => p.id === id);
+  if (!confirm('Удалить товар и его фото?')) return;
+  try {
+    if (product.image_url) {
+      const fname = getFilenameFromUrl(product.image_url);
+      await axios.delete(`/api/storage/products/${fname}`, config).catch(() => {});
+    }
+    await axios.delete(`/api/admin/products/${id}`, config);
+    products.value = products.value.filter(p => p.id !== id);
+  } catch (e) { alert('Ошибка удаления'); }
 };
+
+// --- ФИЛЬТРЫ И ПАГИНАЦИЯ ---
+const filteredProducts = computed(() => {
+  let res = [...products.value];
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim();
+    res = res.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.id.toString() === q);
+  }
+  if (filters.categoryId !== 'all') res = res.filter(p => p.category_id === filters.categoryId);
+  if (filters.brandId !== 'all') res = res.filter(p => p.brand_id === filters.brandId);
+  if (filters.onlyDiscount) res = res.filter(p => p.discount_price > 0);
+  
+  if (filters.sort === 'price-asc') res.sort((a, b) => a.price - b.price);
+  else if (filters.sort === 'price-desc') res.sort((a, b) => b.price - a.price);
+  else res.sort((a, b) => b.id - a.id);
+  return res;
+});
+
+const totalPages = computed(() => Math.ceil(filteredProducts.value.length / itemsPerPage));
+const paginatedProducts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  return filteredProducts.value.slice(start, start + itemsPerPage);
+});
+
+const toggleDetails = (id) => expandedRow.value = expandedRow.value === id ? null : id;
+const resetFilters = () => {
+  searchQuery.value = '';
+  filters.categoryId = 'all';
+  filters.brandId = 'all';
+  filters.onlyDiscount = false;
+  filters.sort = 'new';
+  currentPage.value = 1;
+};
+
+watch([() => filters.categoryId, () => filters.brandId, () => filters.onlyDiscount, () => filters.sort, searchQuery], () => {
+  currentPage.value = 1;
+});
 
 onMounted(loadData);
 </script>
 
 <style scoped>
-
+/* ==========================================================================
+   АДМИНКА: УПРАВЛЕНИЕ ТОВАРАМИ – ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ СТИЛЬ
+   ========================================================================== */
 
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 @keyframes pulseGlow {
@@ -426,7 +445,7 @@ onMounted(loadData);
   font-size: 1.2rem;
 }
 
-/* КАРТОЧКИ (СТЕКЛЯННЫЙ ЭФФЕКТ) */
+/* КАРТОЧКИ */
 .admin-card {
   background: var(--bg-card);
   backdrop-filter: blur(8px);
@@ -459,7 +478,6 @@ onMounted(loadData);
   display: flex;
   align-items: center;
   gap: 8px;
-  position: relative;
 }
 
 .card-decoration {
@@ -553,6 +571,40 @@ onMounted(loadData);
   width: 100%;
 }
 
+.preview-new-img {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.preview-new-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.btn-clear-img {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 .form-footer {
   display: flex;
   justify-content: flex-end;
@@ -601,7 +653,7 @@ onMounted(loadData);
 
 .filter-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   align-items: flex-end;
 }
@@ -692,7 +744,7 @@ onMounted(loadData);
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  min-width: 1000px;
 }
 
 .admin-table th {
@@ -740,7 +792,7 @@ onMounted(loadData);
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  cursor: pointer;
+  margin: 0 auto;
   transition: all 0.2s;
 }
 
@@ -749,23 +801,54 @@ onMounted(loadData);
   border-color: var(--primary);
 }
 
-.table-img {
+.product-img-box img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
 
-.hidden-file-input {
-  position: absolute;
-  top: 0;
-  left: 0;
+.upload-mini-btn {
   width: 100%;
   height: 100%;
-  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  color: var(--text-muted);
   cursor: pointer;
+  transition: all 0.2s;
 }
 
-/* Редактирование полей */
+.upload-mini-btn:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.btn-img-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+.btn-img-delete:hover {
+  transform: scale(1.1);
+  background: var(--danger-hover);
+}
+
+/* Редактируемые поля */
 .inline-edit {
   background: transparent;
   border: 1px solid transparent;
@@ -834,7 +917,7 @@ onMounted(loadData);
 .price-val {
   font-weight: 800;
   color: var(--primary);
-  width: 110px;
+  width: 100px;
 }
 
 .curr {
@@ -851,7 +934,7 @@ onMounted(loadData);
 .discount-val {
   color: var(--danger);
   font-weight: 700;
-  width: 90px;
+  width: 80px;
 }
 
 .remove-discount {
@@ -892,6 +975,7 @@ onMounted(loadData);
   font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
+  margin-right: 6px;
 }
 
 .btn-secondary-small:hover {
@@ -913,7 +997,6 @@ onMounted(loadData);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-left: 6px;
 }
 
 .btn-delete-small:hover {
@@ -1076,11 +1159,9 @@ onMounted(loadData);
     margin: 0 10px 10px 10px;
     grid-template-columns: 1fr;
   }
-  .actions-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: flex-end;
+  .admin-table th,
+  .admin-table td {
+    padding: 12px;
   }
 }
 
@@ -1093,5 +1174,8 @@ body.dark-theme .file-label:hover {
 }
 body.dark-theme .details-panel {
   background: rgba(30, 41, 59, 0.8);
+}
+body.dark-theme .product-img-box {
+  background: #1e293b;
 }
 </style>

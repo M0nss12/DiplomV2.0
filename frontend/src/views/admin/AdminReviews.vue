@@ -1,48 +1,45 @@
 <template>
   <div class="admin-reviews">
-    <!-- ЗАГОЛОВОК -->
+    <!-- ШАПКА -->
     <div class="header-row">
       <div class="header-left">
-        <h1>💬 Модерация и правка отзывов</h1>
-        <p class="subtitle">Управление мнениями: проверка текстов, исправление ошибок и публикация</p>
+        <h1>💬 Управление отзывами</h1>
+        <p class="subtitle">Модерация текстов, управление галереей</p>
       </div>
       <div class="stats-badge">
         <span class="stats-icon">📊</span>
-        Найдено: <b>{{ filteredReviews.length }}</b>
+        Всего: <b>{{ filteredReviews.length }}</b>
       </div>
     </div>
 
-    <!-- 1. ПРОДВИНУТЫЕ ФИЛЬТРЫ -->
+    <!-- ФИЛЬТРЫ -->
     <section class="admin-card filter-section">
       <div class="filter-header">
-        <h3 class="card-title">🔍 Поиск и фильтрация</h3>
+        <h3 class="card-title">🔍 Фильтры и поиск</h3>
         <button @click="resetFilters" class="btn-text-link">Сбросить всё</button>
       </div>
       <div class="filter-grid">
         <div class="input-group search-group">
-          <label>🔎 Умный поиск (Текст, Имя, ID отзыва/товара/юзера)</label>
-          <input v-model="searchQuery" placeholder="Начните вводить данные..." />
+          <label>🔎 Поиск (текст, имя, товар)</label>
+          <input v-model="searchQuery" placeholder="Введите текст отзыва, имя пользователя или название товара..." />
         </div>
-
         <div class="input-group">
-          <label>Статус</label>
-          <select v-model="filterStatus">
-            <option value="all">Все отзывы</option>
-            <option value="pending">⏳ На проверке</option>
-            <option value="approved">✅ Опубликованные</option>
-          </select>
-        </div>
-
-        <div class="input-group">
-          <label>Оценка</label>
+          <label>⭐ Оценка</label>
           <select v-model="ratingFilter">
-            <option value="all">Любая оценка</option>
+            <option value="all">Любая</option>
             <option v-for="n in 5" :key="n" :value="n">{{ n }} ★</option>
           </select>
         </div>
-
         <div class="input-group">
-          <label>Сортировка</label>
+          <label>📌 Статус</label>
+          <select v-model="statusFilter">
+            <option value="all">Все</option>
+            <option value="approved">Опубликованные</option>
+            <option value="pending">На модерации</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>📊 Сортировка</label>
           <select v-model="sortOrder">
             <option value="new">Сначала новые</option>
             <option value="old">Сначала старые</option>
@@ -53,7 +50,7 @@
       </div>
     </section>
 
-    <!-- 2. ТАБЛИЦА ОТЗЫВОВ -->
+    <!-- ТАБЛИЦА ОТЗЫВОВ -->
     <div class="table-container">
       <div class="table-meta">
         <span class="meta-icon">📄</span>
@@ -64,107 +61,100 @@
         <table class="admin-table">
           <thead>
             <tr>
-              <th class="col-id">ID / Дата</th>
-              <th>Товар (Цель отзыва)</th>
-              <th>Автор (Клиент)</th>
+              <th class="col-id">ID</th>
+              <th>Товар / Автор</th>
               <th class="text-center">Оценка</th>
-              <th class="col-content">Содержание (Кликните для правки)</th>
-              <th class="text-center">Публикация</th>
+              <th class="col-content">Отзыв и галерея</th>
+              <th class="text-center">Статус</th>
               <th class="text-right">Действия</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in paginatedReviews" :key="r.id" :class="{ 'row-pending': !r.is_approved }" class="review-row">
-              
-              <!-- ID и ДАТА -->
+            <tr v-for="r in paginatedReviews" :key="r.id" class="review-row" :class="{ 'row-pending': !r.is_approved }">
               <td class="col-id">
                 <span class="id-badge">#{{ r.id }}</span>
                 <div class="date-tag">{{ formatDate(r.created_at) }}</div>
               </td>
               
-              <!-- ТОВАР (Только чтение для безопасности) -->
               <td>
-                <div class="info-block">
-                  <strong class="info-title">{{ getProductName(r.product_id) }}</strong>
-                  <div class="info-subtitle">ID Товара: {{ r.product_id }}</div>
-                  <div class="sku-hint">SKU: {{ getProductSKU(r.product_id) }}</div>
+                <div class="review-meta-info">
+                  <div class="product-name">{{ getProductName(r.product_id) }}</div>
+                  <div class="user-name">👤 {{ getUserName(r.user_id) }}</div>
                 </div>
               </td>
 
-              <!-- АВТОР (Только чтение для безопасности) -->
-              <td>
-                <div class="info-block">
-                  <strong class="info-title">{{ getUserName(r.user_id) }}</strong>
-                  <div class="info-subtitle">User ID: {{ r.user_id }}</div>
-                </div>
-              </td>
-
-              <!-- ОЦЕНКА (Редактируемая) -->
               <td class="text-center">
-                <div class="rating-select-wrapper">
-                  <select v-model.number="r.rating" @change="updateReview(r)" class="rating-select">
-                    <option v-for="n in 5" :key="n" :value="n">{{ n }} ★</option>
-                  </select>
-                </div>
+                <select v-model.number="r.rating" @change="saveReview(r)" class="rating-select">
+                  <option v-for="n in 5" :key="n" :value="n">{{ n }} ★</option>
+                </select>
               </td>
 
-              <!-- ТЕКСТЫ (Редактируемые) -->
               <td class="col-content">
-                <div class="edit-fields-group">
-                  <div class="field-row">
+                <div class="review-body-edit">
+                  <div class="text-fields">
                     <label>💬 Комментарий:</label>
-                    <textarea v-model="r.comment" @change="updateReview(r)" rows="2" placeholder="Текст отзыва..."></textarea>
+                    <textarea v-model="r.comment" @change="saveReview(r)" class="comment-textarea" placeholder="Текст отзыва..."></textarea>
+                    
+                    <div class="pros-cons-grid">
+                      <div>
+                        <label class="label-pros">➕ Плюсы:</label>
+                        <input v-model="r.pros" @change="saveReview(r)" class="mini-input" placeholder="Не указано" />
+                      </div>
+                      <div>
+                        <label class="label-cons">➖ Минусы:</label>
+                        <input v-model="r.cons" @change="saveReview(r)" class="mini-input" placeholder="Не указано" />
+                      </div>
+                    </div>
                   </div>
-                  <div class="field-row">
-                    <label class="p-label">➕ Плюсы:</label>
-                    <input v-model="r.pros" @change="updateReview(r)" placeholder="Не указано" />
-                  </div>
-                  <div class="field-row">
-                    <label class="c-label">➖ Минусы:</label>
-                    <input v-model="r.cons" @change="updateReview(r)" placeholder="Не указано" />
+
+                  <!-- ГАЛЕРЕЯ -->
+                  <div class="image-management-zone">
+                    <div class="images-grid">
+                      <div v-for="(imgUrl, index) in (r.images || [])" :key="index" class="img-item">
+                        <img :src="imgUrl" @click="previewImage(imgUrl)" class="img-preview" />
+                        <button @click="deleteSpecificImage(r, index)" class="delete-img-trigger" title="Удалить фото">✕</button>
+                      </div>
+
+                      <label v-if="(r.images?.length || 0) < 5" class="upload-new-trigger" :class="{'loading': uploadLoadingId === r.id}">
+                        <input type="file" @change="(e) => handleImageUpload(e, r)" accept="image/*" hidden />
+                        <span v-if="uploadLoadingId !== r.id">+</span>
+                        <span v-else class="loader-mini"></span>
+                      </label>
+                    </div>
+                    <div class="img-counter">{{ r.images?.length || 0 }} / 5 фото</div>
                   </div>
                 </div>
               </td>
 
-              <!-- СТАТУС (Toggle) -->
               <td class="text-center">
-                <div class="status-toggle-box">
+                <div class="status-wrapper">
                   <label class="toggle-switch">
-                    <input type="checkbox" v-model="r.is_approved" @change="updateReview(r)" />
+                    <input type="checkbox" v-model="r.is_approved" @change="saveReview(r)" />
                     <span class="toggle-slider"></span>
                   </label>
                   <span class="status-text" :class="{ 'active': r.is_approved }">
-                    {{ r.is_approved ? 'ОПУБЛИКОВАН' : 'СКРЫТ' }}
+                    {{ r.is_approved ? 'Опубликован' : 'Скрыт' }}
                   </span>
                 </div>
               </td>
 
-              <!-- УДАЛЕНИЕ -->
               <td class="text-right">
-                <button @click="deleteReview(r.id)" class="btn-delete-small" title="Удалить отзыв навсегда">🗑️ Удалить</button>
+                <button @click="removeReview(r.id)" class="btn-delete-review" title="Удалить отзыв и все фото">🗑️ Удалить</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 3. ПАГИНАЦИЯ -->
+      <!-- ПАГИНАЦИЯ -->
       <div v-if="totalPages > 1" class="pagination-wrapper">
         <button @click="currentPage--" :disabled="currentPage === 1" class="p-btn">←</button>
         <div class="p-numbers">
-          <button v-for="p in totalPages" :key="p" @click="currentPage = p" :class="{ active: currentPage === p }">
-            {{ p }}
+          <button v-for="page in totalPages" :key="page" @click="currentPage = page" :class="{ active: currentPage === page }">
+            {{ page }}
           </button>
         </div>
         <button @click="currentPage++" :disabled="currentPage === totalPages" class="p-btn">→</button>
-      </div>
-
-      <!-- ПУСТОЕ СОСТОЯНИЕ -->
-      <div v-if="!loading && filteredReviews.length === 0" class="empty-state">
-        <div class="empty-icon">📭</div>
-        <h3>Отзывы не найдены</h3>
-        <p>Попробуйте изменить параметры поиска или фильтры.</p>
-        <button @click="resetFilters" class="btn-primary-small">Сбросить всё</button>
       </div>
     </div>
   </div>
@@ -180,71 +170,158 @@ const config = { headers: { 'x-admin-key': ADMIN_KEY } };
 const reviews = ref([]);
 const products = ref([]);
 const users = ref([]);
-const loading = ref(true);
+const uploadLoadingId = ref(null);
 
-const filterStatus = ref('all');
-const ratingFilter = ref('all');
+// Фильтры
 const searchQuery = ref('');
+const ratingFilter = ref('all');
+const statusFilter = ref('all');
 const sortOrder = ref('new');
 const currentPage = ref(1);
-const itemsPerPage = 15;
+const itemsPerPage = 10;
 
-const formatDate = (date) => date ? new Date(date).toLocaleDateString('ru-RU') : '';
-
+// Загрузка данных
 const loadData = async () => {
-  loading.value = true;
   try {
     const [rRes, pRes, uRes] = await Promise.all([
       axios.get('/api/admin/reviews', config),
       axios.get('/api/admin/products', config),
       axios.get('/api/admin/users', config)
     ]);
-    reviews.value = rRes.data;
+    
+    reviews.value = rRes.data.map(rev => ({
+      ...rev,
+      images: Array.isArray(rev.images) ? rev.images : [],
+      pros: rev.pros || '',
+      cons: rev.cons || ''
+    }));
+    
     products.value = pRes.data;
     users.value = uRes.data;
-  } catch (e) { console.error('Ошибка загрузки'); } 
-  finally { loading.value = false; }
+  } catch (e) { console.error('Ошибка загрузки'); }
 };
 
-const resetFilters = () => {
-  filterStatus.value = 'all';
-  ratingFilter.value = 'all';
-  searchQuery.value = '';
-  sortOrder.value = 'new';
-  currentPage.value = 1;
+// Извлечение имени файла из URL
+const getFilenameFromUrl = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  return parts.pop();
+};
+
+// Сохранение изменений
+const saveReview = async (review) => {
+  try {
+    const payload = {
+      rating: review.rating,
+      comment: review.comment,
+      pros: review.pros,
+      cons: review.cons,
+      is_approved: review.is_approved,
+      images: Array.isArray(review.images) ? review.images : []
+    };
+    await axios.put(`/api/admin/reviews/${review.id}`, payload, config);
+  } catch (e) { console.error('Ошибка сохранения'); }
+};
+
+// Загрузка нового фото
+const handleImageUpload = async (event, review) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  uploadLoadingId.value = review.id;
+
+  try {
+    const res = await axios.post('/api/upload/reviews', formData);
+    if (!Array.isArray(review.images)) review.images = [];
+    review.images.push(res.data.url);
+    await saveReview(review);
+  } catch (e) {
+    alert('Ошибка загрузки. Проверьте подключение.');
+  } finally {
+    uploadLoadingId.value = null;
+  }
+};
+
+// Удаление конкретного фото
+const deleteSpecificImage = async (review, index) => {
+  const url = review.images[index];
+  const filename = getFilenameFromUrl(url);
+  if (!confirm('Удалить это фото навсегда?')) return;
+
+  try {
+    await axios.delete(`/api/storage/reviews/${filename}`, config);
+    review.images.splice(index, 1);
+    await saveReview(review);
+  } catch (e) {
+    alert('Не удалось удалить файл');
+  }
+};
+
+// Удаление всего отзыва
+const removeReview = async (id) => {
+  const review = reviews.value.find(r => r.id === id);
+  if (!review) return;
+  if (!confirm('Удалить отзыв и все прикреплённые фотографии?')) return;
+
+  try {
+    if (review.images && review.images.length > 0) {
+      for (const url of review.images) {
+        const filename = getFilenameFromUrl(url);
+        try {
+          await axios.delete(`/api/storage/reviews/${filename}`, config);
+        } catch (err) { /* файл уже отсутствует */ }
+      }
+    }
+    await axios.delete(`/api/admin/reviews/${id}`, config);
+    reviews.value = reviews.value.filter(r => r.id !== id);
+  } catch (e) {
+    alert('Ошибка при удалении отзыва');
+  }
 };
 
 const getProductName = (id) => products.value.find(p => p.id === id)?.name || 'Товар удален';
-const getProductSKU = (id) => products.value.find(p => p.id === id)?.sku || '---';
 const getUserName = (id) => {
   const u = users.value.find(user => user.id === id);
-  return u ? `${u.last_name || ''} ${u.first_name || ''}`.trim() || `Пользователь #${id}` : `Пользователь #${id}`;
+  return u ? `${u.last_name || ''} ${u.first_name || ''}`.trim() || 'Пользователь' : 'Гость';
 };
+const formatDate = (d) => new Date(d).toLocaleDateString('ru-RU');
+const previewImage = (url) => window.open(url, '_blank');
 
+// Фильтрация и сортировка
 const filteredReviews = computed(() => {
   let res = [...reviews.value];
-  
+
+  // Поиск
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim();
     res = res.filter(r => {
-      const p = products.value.find(item => item.id === r.product_id) || {};
-      const u = users.value.find(user => user.id === r.user_id) || {};
-      const fullName = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
-      return (
-        r.id.toString() === q || 
-        r.product_id.toString() === q || 
-        r.user_id.toString().toLowerCase().includes(q) || 
-        (r.comment && r.comment.toLowerCase().includes(q)) || 
-        (p.name && p.name.toLowerCase().includes(q)) || 
-        fullName.includes(q)
-      );
+      const product = products.value.find(p => p.id === r.product_id);
+      const user = users.value.find(u => u.id === r.user_id);
+      const userName = user ? `${user.first_name} ${user.last_name}`.toLowerCase() : '';
+      const productName = product?.name?.toLowerCase() || '';
+      return (r.comment && r.comment.toLowerCase().includes(q)) ||
+             (r.pros && r.pros.toLowerCase().includes(q)) ||
+             (r.cons && r.cons.toLowerCase().includes(q)) ||
+             productName.includes(q) ||
+             userName.includes(q);
     });
   }
 
-  if (filterStatus.value === 'approved') res = res.filter(r => r.is_approved);
-  if (filterStatus.value === 'pending') res = res.filter(r => !r.is_approved);
-  if (ratingFilter.value !== 'all') res = res.filter(r => r.rating === parseInt(ratingFilter.value));
+  // Фильтр по рейтингу
+  if (ratingFilter.value !== 'all') {
+    res = res.filter(r => r.rating === parseInt(ratingFilter.value));
+  }
 
+  // Фильтр по статусу
+  if (statusFilter.value === 'approved') {
+    res = res.filter(r => r.is_approved);
+  } else if (statusFilter.value === 'pending') {
+    res = res.filter(r => !r.is_approved);
+  }
+
+  // Сортировка
   if (sortOrder.value === 'new') res.sort((a, b) => b.id - a.id);
   else if (sortOrder.value === 'old') res.sort((a, b) => a.id - b.id);
   else if (sortOrder.value === 'rating-desc') res.sort((a, b) => b.rating - a.rating);
@@ -259,28 +336,25 @@ const paginatedReviews = computed(() => {
   return filteredReviews.value.slice(start, start + itemsPerPage);
 });
 
-watch([searchQuery, filterStatus, ratingFilter, sortOrder], () => currentPage.value = 1);
-
-const updateReview = async (review) => {
-  try {
-    await axios.put(`/api/admin/reviews/${review.id}`, review, config);
-  } catch (e) { alert('Ошибка сохранения'); }
+const resetFilters = () => {
+  searchQuery.value = '';
+  ratingFilter.value = 'all';
+  statusFilter.value = 'all';
+  sortOrder.value = 'new';
+  currentPage.value = 1;
 };
 
-const deleteReview = async (id) => {
-  if (!confirm('Отзыв будет удален безвозвратно. Продолжить?')) return;
-  try {
-    await axios.delete(`/api/admin/reviews/${id}`, config);
-    reviews.value = reviews.value.filter(r => r.id !== id);
-  } catch (e) { alert('Ошибка при удалении'); }
-};
+// Сброс страницы при изменении фильтров
+watch([searchQuery, ratingFilter, statusFilter, sortOrder], () => {
+  currentPage.value = 1;
+});
 
 onMounted(loadData);
 </script>
 
 <style scoped>
 /* ==========================================================================
-   АДМИНКА: УПРАВЛЕНИЕ ОТЗЫВАМИ – СОВРЕМЕННЫЙ СТИЛЬ (БЕЗ КРАСНЫХ ВЫДЕЛЕНИЙ)
+   АДМИНКА: УПРАВЛЕНИЕ ОТЗЫВАМИ – СОВРЕМЕННЫЙ СТИЛЬ
    ========================================================================== */
 
 @keyframes fadeSlideUp {
@@ -288,7 +362,9 @@ onMounted(loadData);
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 .admin-reviews {
   padding: 40px 24px;
@@ -335,9 +411,11 @@ onMounted(loadData);
   box-shadow: var(--shadow-sm);
 }
 
-.stats-icon { font-size: 1.2rem; }
+.stats-icon {
+  font-size: 1.2rem;
+}
 
-/* КАРТОЧКИ */
+/* КАРТОЧКИ ФИЛЬТРОВ */
 .admin-card {
   background: var(--bg-card);
   backdrop-filter: blur(8px);
@@ -370,11 +448,6 @@ onMounted(loadData);
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.filter-section {
-  background: var(--bg-input);
-  border-style: solid;
 }
 
 .filter-grid {
@@ -480,13 +553,12 @@ onMounted(loadData);
   transition: background 0.2s;
 }
 
-/* Строка с ожидающим отзывом – слабая подсветка (не красная) */
-.row-pending {
-  background: rgba(245, 158, 11, 0.04);
-}
-
 .review-row:hover td {
   background: var(--primary-light);
+}
+
+.row-pending {
+  background: rgba(245, 158, 11, 0.03);
 }
 
 .col-id {
@@ -508,31 +580,24 @@ onMounted(loadData);
   margin-top: 4px;
 }
 
-/* Информационные блоки */
-.info-block {
+.review-meta-info {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.info-title {
-  font-size: 0.9rem;
+.product-name {
   font-weight: 700;
+  font-size: 0.9rem;
   color: var(--text-main);
 }
 
-.info-subtitle,
-.sku-hint {
-  font-size: 0.7rem;
+.user-name {
+  font-size: 0.8rem;
   color: var(--text-muted);
 }
 
-/* Выбор рейтинга */
-.rating-select-wrapper {
-  display: flex;
-  justify-content: center;
-}
-
+/* Оценка */
 .rating-select {
   width: 80px;
   padding: 6px 10px;
@@ -544,24 +609,24 @@ onMounted(loadData);
   cursor: pointer;
 }
 
-/* Редактируемые поля */
+/* Текст отзыва */
 .col-content {
-  min-width: 320px;
+  min-width: 380px;
 }
 
-.edit-fields-group {
+.review-body-edit {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.field-row {
+.text-fields {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
-.field-row label {
+.text-fields label {
   font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -569,11 +634,7 @@ onMounted(loadData);
   color: var(--text-muted);
 }
 
-.field-row label.p-label { color: var(--success); }
-.field-row label.c-label { color: var(--danger); }
-
-.field-row textarea,
-.field-row input {
+.comment-textarea {
   width: 100%;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
@@ -581,23 +642,162 @@ onMounted(loadData);
   background: var(--bg-input);
   color: var(--text-main);
   font-size: 0.85rem;
-  transition: all 0.2s;
   resize: vertical;
+  font-family: inherit;
 }
 
-.field-row textarea:focus,
-.field-row input:focus {
+.comment-textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-light);
   outline: none;
 }
 
-/* Переключатель статуса (toggle) */
-.status-toggle-box {
+.pros-cons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.label-pros {
+  color: var(--success);
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.label-cons {
+  color: var(--danger);
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.mini-input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.mini-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+  outline: none;
+}
+
+/* Галерея */
+.image-management-zone {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.images-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.img-item {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.img-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.img-preview:hover {
+  transform: scale(1.05);
+  border-color: var(--primary);
+}
+
+.delete-img-trigger {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+.delete-img-trigger:hover {
+  transform: scale(1.1);
+  background: var(--danger-hover);
+}
+
+.upload-new-trigger {
+  width: 60px;
+  height: 60px;
+  border: 2px dashed var(--border-color);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.8rem;
+  transition: all 0.2s;
+}
+
+.upload-new-trigger:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.upload-new-trigger.loading {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.loader-mini {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.img-counter {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* Переключатель статуса */
+.status-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .toggle-switch {
@@ -656,14 +856,14 @@ onMounted(loadData);
 }
 
 /* Кнопка удаления */
-.btn-delete-small {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
+.btn-delete-review {
+  background: var(--danger-light);
+  border: 1px solid transparent;
   padding: 8px 14px;
   border-radius: 30px;
   font-weight: 700;
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--danger);
   cursor: pointer;
   transition: all 0.2s;
   display: inline-flex;
@@ -671,11 +871,11 @@ onMounted(loadData);
   gap: 6px;
 }
 
-.btn-delete-small:hover {
-  background: var(--danger-light);
-  color: var(--danger);
-  border-color: var(--danger);
+.btn-delete-review:hover {
+  background: var(--danger);
+  color: white;
   transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(231, 111, 81, 0.3);
 }
 
 .text-right {
@@ -749,48 +949,6 @@ onMounted(loadData);
   box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
 }
 
-/* Пустое состояние */
-.empty-state {
-  text-align: center;
-  padding: 80px 20px;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 2px dashed var(--border-color);
-  margin-top: 20px;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 20px;
-  opacity: 0.5;
-}
-
-.empty-state h3 {
-  font-size: 1.3rem;
-  margin-bottom: 8px;
-}
-
-.empty-state p {
-  color: var(--text-muted);
-  margin-bottom: 20px;
-}
-
-.btn-primary-small {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: white;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 40px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary-small:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
-}
-
 /* АДАПТИВНОСТЬ */
 @media (max-width: 1200px) {
   .filter-grid {
@@ -816,17 +974,22 @@ onMounted(loadData);
   .pagination-wrapper {
     flex-direction: column;
   }
-  .status-toggle-box {
-    flex-direction: column;
-    gap: 8px;
-  }
   .col-content {
-    min-width: 250px;
+    min-width: 280px;
+  }
+  .pros-cons-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 /* ТЁМНАЯ ТЕМА */
 body.dark-theme .admin-card {
   background: rgba(30, 41, 59, 0.95);
+}
+body.dark-theme .img-preview {
+  background: #1e293b;
+}
+body.dark-theme .upload-new-trigger {
+  background: rgba(30, 41, 59, 0.5);
 }
 </style>

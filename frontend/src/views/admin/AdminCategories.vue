@@ -4,7 +4,7 @@
     <div class="header-row">
       <div class="header-left">
         <h1>📂 Управление категориями</h1>
-        <p class="subtitle">Структура каталога, вложенность разделов и иконки</p>
+        <p class="subtitle">Структура каталога и автоматическая очистка хранилища иконок</p>
       </div>
       <div class="stats-badge">
         <span class="stats-icon">📊</span>
@@ -16,16 +16,17 @@
     <section class="admin-card create-card">
       <div class="card-header">
         <h3 class="card-title">✨ Создать новую категорию</h3>
+        <div class="card-decoration"></div>
       </div>
       <form @submit.prevent="createCategory" class="admin-form">
         <div class="input-grid">
           <div class="input-group">
             <label>📛 Название</label>
-            <input v-model="newCategory.name" placeholder="Напр. Тормозная система" required />
+            <input v-model="newCategory.name" placeholder="Напр. Трансмиссия" required />
           </div>
           <div class="input-group">
             <label>🔗 Slug (URL адрес)</label>
-            <input v-model="newCategory.slug" placeholder="tormoznaya-sistema" required />
+            <input v-model="newCategory.slug" placeholder="transmission" required />
           </div>
           <div class="input-group">
             <label>📁 Родительская категория</label>
@@ -35,13 +36,17 @@
             </select>
           </div>
           <div class="input-group">
-            <label>🖼️ Иконка категории</label>
-            <div class="upload-wrapper" style="display: flex; gap: 10px; align-items: center;">
-              <label class="btn-secondary-small" style="cursor:pointer; margin:0;">
-                📁 Файл
-                <input type="file" @change="(e) => handleFileUpload(e, 'new')" accept="image/*" style="display:none;" />
+            <label>🖼️ Иконка раздела</label>
+            <div class="upload-controls">
+              <div v-if="newCategory.image_url" class="preview-new-img">
+                <img :src="newCategory.image_url" @click="previewImage(newCategory.image_url)" title="Просмотр" />
+                <button type="button" @click="newCategory.image_url = ''" class="btn-clear-img">✕</button>
+              </div>
+              <label v-else class="file-label">
+                📁 Загрузить файл
+                <input type="file" @change="(e) => handleFileUpload(e, 'new')" accept="image/*" class="hidden-file" />
               </label>
-              <input v-model="newCategory.image_url" placeholder="Или URL иконки" style="flex:1;" />
+              <input v-model="newCategory.image_url" placeholder="Или прямая ссылка" class="url-mini" />
             </div>
           </div>
         </div>
@@ -56,13 +61,13 @@
     <!-- 2. УМНАЯ ФИЛЬТРАЦИЯ -->
     <section class="admin-card filter-section">
       <div class="filter-header">
-        <h3 class="card-title">🔍 Фильтры и поиск</h3>
+        <h3 class="card-title">🔍 Поиск и фильтры</h3>
         <button @click="resetFilters" class="btn-text-link">Сбросить всё</button>
       </div>
-      <div class="filter-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
-        <div class="input-group search-group">
-          <label>🔎 Поиск по названию, Slug или ID</label>
-          <input v-model="searchQuery" placeholder="Введите название, slug или #ID..." />
+      <div class="filter-grid">
+        <div class="input-group">
+          <label>🔎 Поиск (Название, Slug или ID)</label>
+          <input v-model="searchQuery" placeholder="Введите данные для поиска..." />
         </div>
 
         <div class="input-group">
@@ -76,7 +81,7 @@
       </div>
     </section>
 
-    <!-- 3. ТАБЛИЦА КАТЕГОРИЙ (без красного выделения) -->
+    <!-- 3. ТАБЛИЦА КАТЕГОРИЙ -->
     <div class="table-container">
       <div class="table-meta">
         <span class="meta-icon">📄</span>
@@ -97,14 +102,18 @@
           </thead>
           <tbody>
             <tr v-for="cat in paginatedCategories" :key="cat.id" class="category-row">
-              <td class="col-id">
-                <span class="id-badge">#{{ cat.id }}</span>
-              </td>
+              <td class="col-id">#{{ cat.id }}</td>
               
               <td class="col-photo">
-                <div class="category-img-box" title="Кликните для смены иконки">
-                  <img :src="cat.image_url || '/assets/images/no-cat.png'" />
-                  <input type="file" @change="(e) => handleFileUpload(e, 'edit', cat)" class="hidden-file-input" />
+                <div class="category-img-box">
+                  <template v-if="cat.image_url">
+                    <img :src="cat.image_url" @click="previewImage(cat.image_url)" title="Клик для просмотра" />
+                    <button @click="removeExistingIcon(cat)" class="btn-img-delete" title="Удалить из облака">✕</button>
+                  </template>
+                  <label v-else class="upload-mini-btn">
+                    <span>+</span>
+                    <input type="file" @change="(e) => handleFileUpload(e, 'edit', cat)" hidden />
+                  </label>
                 </div>
               </td>
 
@@ -129,22 +138,18 @@
               </td>
 
               <td class="text-right">
-                <button @click="deleteCategory(cat.id)" class="btn-delete-small">
-                  🗑️ Удалить
-                </button>
+                <button @click="deleteCategory(cat)" class="btn-delete-small">🗑️ Удалить</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 4. ПАГИНАЦИЯ -->
+      <!-- ПАГИНАЦИЯ -->
       <div v-if="totalPages > 1" class="pagination-wrapper">
         <button @click="currentPage--" :disabled="currentPage === 1" class="p-btn">←</button>
         <div class="p-numbers">
-          <button v-for="p in totalPages" :key="p" @click="currentPage = p" :class="{ active: currentPage === p }">
-            {{ p }}
-          </button>
+          <button v-for="p in totalPages" :key="p" @click="currentPage = p" :class="{ active: currentPage === p }">{{ p }}</button>
         </div>
         <button @click="currentPage++" :disabled="currentPage === totalPages" class="p-btn">→</button>
       </div>
@@ -163,52 +168,101 @@ const categories = ref([]);
 const searchQuery = ref('');
 const parentFilter = ref('all');
 const uploading = ref(false);
-
 const currentPage = ref(1);
 const itemsPerPage = 20;
 
 const newCategory = reactive({ name: '', slug: '', parent_id: null, image_url: '' });
 
-const fetchCategories = async () => {
+// Загрузка данных
+const loadData = async () => {
   try {
     const res = await axios.get('/api/admin/categories', config);
-    categories.value = res.data;
-  } catch (e) { console.error('Ошибка загрузки'); }
+    categories.value = Array.isArray(res.data) ? res.data : [];
+  } catch (e) { console.error('Ошибка загрузки данных'); }
 };
 
-const resetFilters = () => {
-  searchQuery.value = '';
-  parentFilter.value = 'all';
-  currentPage.value = 1;
+// --- МЕНЕДЖМЕНТ ФАЙЛОВ ---
+const getFilenameFromUrl = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  return parts.pop();
+};
+
+const previewImage = (url) => { if (url) window.open(url, '_blank'); };
+
+const removeExistingIcon = async (cat) => {
+  if (!confirm('Удалить иконку физически из хранилища?')) return;
+  const filename = getFilenameFromUrl(cat.image_url);
+  try {
+    if (filename) await axios.delete(`/api/storage/categories/${filename}`, config);
+    cat.image_url = null;
+    await updateCategory(cat);
+  } catch (e) { alert('Ошибка при удалении файла'); }
 };
 
 const handleFileUpload = async (event, mode, target = null) => {
   const file = event.target.files[0];
   if (!file) return;
+
   const formData = new FormData();
   formData.append('file', file);
   uploading.value = true;
+
   try {
     const res = await axios.post('/api/upload/categories', formData);
-    if (mode === 'new') newCategory.image_url = res.data.url;
-    else { 
-      target.image_url = res.data.url; 
-      await updateCategory(target); 
+    if (mode === 'new') {
+      newCategory.image_url = res.data.url;
+    } else {
+      if (target.image_url) {
+        const oldFile = getFilenameFromUrl(target.image_url);
+        await axios.delete(`/api/storage/categories/${oldFile}`, config).catch(() => {});
+      }
+      target.image_url = res.data.url;
+      await updateCategory(target);
     }
   } catch (e) { alert('Ошибка загрузки'); } 
   finally { uploading.value = false; }
 };
 
+// --- CRUD ---
+const createCategory = async () => {
+  try {
+    const res = await axios.post('/api/admin/categories', newCategory, config);
+    categories.value.unshift(res.data);
+    Object.assign(newCategory, { name: '', slug: '', parent_id: null, image_url: '' });
+    alert('Категория успешно создана');
+  } catch (e) { alert('Ошибка при создании'); }
+};
+
+const updateCategory = async (cat) => {
+  try { await axios.put(`/api/admin/categories/${cat.id}`, cat, config); } catch (e) { }
+};
+
+const deleteCategory = async (cat) => {
+  if (!confirm('Удалить категорию и её иконку?')) return;
+  try {
+    if (cat.image_url) {
+      const filename = getFilenameFromUrl(cat.image_url);
+      await axios.delete(`/api/storage/categories/${filename}`, config).catch(() => {});
+    }
+    await axios.delete(`/api/admin/categories/${cat.id}`, config);
+    categories.value = categories.value.filter(c => c.id !== cat.id);
+  } catch (e) { alert('Ошибка удаления (возможно, есть подкатегории)'); }
+};
+
+// --- ФИЛЬТРАЦИЯ И ПАГИНАЦИЯ ---
 const filteredCategories = computed(() => {
+  if (!Array.isArray(categories.value)) return [];
   let res = [...categories.value];
+  
   if (parentFilter.value !== 'all') {
     res = res.filter(c => c.parent_id === parentFilter.value);
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim();
     res = res.filter(c => 
-      c.name.toLowerCase().includes(q) || 
-      c.slug.toLowerCase().includes(q) ||
+      (c.name && c.name.toLowerCase().includes(q)) || 
+      (c.slug && c.slug.toLowerCase().includes(q)) ||
       c.id.toString() === q
     );
   }
@@ -216,46 +270,28 @@ const filteredCategories = computed(() => {
 });
 
 const totalPages = computed(() => Math.ceil(filteredCategories.value.length / itemsPerPage));
+
 const paginatedCategories = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
   return filteredCategories.value.slice(start, start + itemsPerPage);
 });
 
-watch([searchQuery, parentFilter], () => currentPage.value = 1);
-
-const createCategory = async () => {
-  try {
-    const res = await axios.post('/api/admin/categories', newCategory, config);
-    categories.value.unshift(res.data);
-    Object.assign(newCategory, { name: '', slug: '', parent_id: null, image_url: '' });
-    alert('Категория успешно создана');
-  } catch (e) { alert('Ошибка при создании категории'); }
+const resetFilters = () => {
+  searchQuery.value = '';
+  parentFilter.value = 'all';
+  currentPage.value = 1;
 };
 
-const updateCategory = async (cat) => {
-  try { 
-    await axios.put(`/api/admin/categories/${cat.id}`, cat, config); 
-  } catch (e) { 
-    console.error("Ошибка обновления");
-  }
-};
+watch([searchQuery, parentFilter], () => {
+  currentPage.value = 1;
+});
 
-const deleteCategory = async (id) => {
-  if (!confirm('ВНИМАНИЕ! Если у категории есть подкатегории или товары, удаление может вызвать ошибку или оставить данные без привязки. Продолжить?')) return;
-  try {
-    await axios.delete(`/api/admin/categories/${id}`, config);
-    categories.value = categories.value.filter(c => c.id !== id);
-  } catch (e) { 
-    alert('Не удалось удалить категорию. Проверьте, нет ли у неё зависимых подкатегорий.'); 
-  }
-};
-
-onMounted(fetchCategories);
+onMounted(loadData);
 </script>
 
 <style scoped>
 /* ==========================================================================
-   АДМИНКА: УПРАВЛЕНИЕ КАТЕГОРИЯМИ – БЕЗ КРАСНЫХ ВЫДЕЛЕНИЙ И ТОЧЕК
+   АДМИНКА: УПРАВЛЕНИЕ КАТЕГОРИЯМИ – ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ ДИЗАЙН
    ========================================================================== */
 
 @keyframes fadeSlideUp {
@@ -315,7 +351,7 @@ onMounted(fetchCategories);
 /* КАРТОЧКИ */
 .admin-card {
   background: var(--bg-card);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 28px;
@@ -347,7 +383,14 @@ onMounted(fetchCategories);
   gap: 8px;
 }
 
-/* ФОРМА */
+.card-decoration {
+  width: 50px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 3px;
+}
+
+/* ФОРМА ДОБАВЛЕНИЯ */
 .input-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -387,6 +430,76 @@ onMounted(fetchCategories);
   box-shadow: 0 0 0 3px var(--primary-light);
   outline: none;
   transform: scale(1.01);
+}
+
+.upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.2s;
+}
+
+.file-label:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.hidden-file {
+  display: none;
+}
+
+.url-mini {
+  width: 100%;
+}
+
+.preview-new-img {
+  position: relative;
+  width: 80px;
+  height: 60px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  margin-bottom: 8px;
+}
+
+.preview-new-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.btn-clear-img {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .form-footer {
@@ -457,7 +570,7 @@ onMounted(fetchCategories);
   text-decoration: none;
 }
 
-/* ТАБЛИЦА – УБРАНО КРАСНОЕ ВЫДЕЛЕНИЕ */
+/* ТАБЛИЦА */
 .table-container {
   margin-top: 16px;
 }
@@ -504,9 +617,8 @@ onMounted(fetchCategories);
   transition: background 0.2s;
 }
 
-/* Убираем красный фон при наведении на строку */
 .category-row:hover td {
-  background: transparent;
+  background: var(--primary-light);
 }
 
 .col-id {
@@ -531,10 +643,9 @@ onMounted(fetchCategories);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
+  overflow: visible;
   margin: 0 auto;
+  transition: all 0.2s;
 }
 
 .category-img-box:hover {
@@ -546,16 +657,48 @@ onMounted(fetchCategories);
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  cursor: zoom-in;
 }
 
-.hidden-file-input {
-  position: absolute;
-  top: 0;
-  left: 0;
+.upload-mini-btn {
   width: 100%;
   height: 100%;
-  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  color: var(--text-muted);
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-mini-btn:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.btn-img-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+.btn-img-delete:hover {
+  transform: scale(1.1);
+  background: var(--danger-hover);
 }
 
 /* Редактируемые поля */
@@ -596,7 +739,6 @@ onMounted(fetchCategories);
 .slug-prefix {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-muted);
 }
 
 .slug-text {
@@ -620,7 +762,7 @@ onMounted(fetchCategories);
   border-color: var(--border-color);
 }
 
-/* Кнопка удаления – без агрессивного красного */
+/* Кнопка удаления */
 .btn-delete-small {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -731,18 +873,23 @@ onMounted(fetchCategories);
   .pagination-wrapper {
     flex-direction: column;
   }
-  .admin-table th, 
+  .admin-table th,
   .admin-table td {
     padding: 12px;
   }
 }
 
-/* ТЁМНАЯ ТЕМА */
+/* ТЁМНАЯ ТЕМА – ДОПОЛНИТЕЛЬНЫЕ ПРАВКИ */
 body.dark-theme .admin-card {
   background: rgba(30, 41, 59, 0.95);
 }
-body.dark-theme .table-select option {
-  background: var(--bg-card);
-  color: var(--text-main);
+body.dark-theme .file-label:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+body.dark-theme .category-img-box {
+  background: #1e293b;
+}
+body.dark-theme .preview-new-img {
+  background: #1e293b;
 }
 </style>

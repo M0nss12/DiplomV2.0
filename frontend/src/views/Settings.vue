@@ -6,7 +6,7 @@
         <router-link to="/profile" class="back-link">← Вернуться в кабинет</router-link>
       </div>
 
-      <!-- 1. БЛОК АВАТАРА -->
+      <!-- 1. БЛОК АВАТАРА (улучшенный) -->
       <section class="avatar-section">
         <div class="avatar-main">
           <div class="avatar-wrapper">
@@ -16,7 +16,10 @@
             </div>
           </div>
           <input type="file" @change="handleCustomPhoto" id="avatar-file" style="display:none" accept="image/*" />
-          <button @click="triggerFile" class="btn-upload">Загрузить фото</button>
+          <div class="avatar-actions">
+            <button @click="triggerFile" class="btn-upload">Загрузить фото</button>
+            <button v-if="!isProtectedAvatar(user.avatar_url)" @click="resetToDefault" class="btn-reset-avatar">Удалить личное фото</button>
+          </div>
         </div>
         
         <div class="avatar-picker">
@@ -26,7 +29,7 @@
               v-for="url in defaultAvatars" 
               :key="url" 
               :src="url" 
-              @click="user.avatar_url = url"
+              @click="selectDefaultAvatar(url)"
               class="avatar-option"
               :class="{ 'is-selected': user.avatar_url === url }"
             />
@@ -66,7 +69,7 @@
         </div>
       </section>
 
-      <!-- 3. НАСЕЛЕННЫЙ ПУНКТ -->
+      <!-- 3. РЕГИОН (улучшенный) -->
       <section class="region-section">
         <h3 class="section-title">📍 Ваш регион</h3>
         <div class="field-box">
@@ -98,7 +101,7 @@
         </div>
       </section>
 
-      <!-- ФУТЕР КНОПКИ -->
+      <!-- ФУТЕР -->
       <div class="settings-footer">
         <button @click="$router.push('/profile')" class="btn-cancel">Отмена</button>
         <button @click="saveChanges" class="btn-save">
@@ -111,7 +114,7 @@
     <div v-else class="loading-container">
       <div v-if="!errorMessage" class="loading-box">
         <div class="loader"></div>
-        <h2>Загрузка профиля...</h2>
+        <h2>Загрузка...</h2>
       </div>
       <div v-else class="error-box">
         <h2>⚠️ {{ errorMessage }}</h2>
@@ -130,6 +133,9 @@ import { useAppStore } from '@/stores/appStore';
 const router = useRouter();
 const appStore = useAppStore();
 
+const ADMIN_KEY = 'my_super_secret_admin_123';
+const authConfig = { headers: { 'x-admin-key': ADMIN_KEY } };
+
 const user = ref(null);
 const errorMessage = ref('');
 const defaultAvatars = ref([]);
@@ -139,7 +145,6 @@ const visibility = reactive({ old: false, new: false, confirm: false });
 const loadData = async () => {
   const userId = localStorage.getItem('user_id');
   if (!userId) { router.push('/login'); return; }
-
   try {
     const [uRes, aRes] = await Promise.all([
       axios.get(`/api/users/profile/${userId}`),
@@ -147,10 +152,26 @@ const loadData = async () => {
     ]);
     user.value = uRes.data;
     defaultAvatars.value = aRes.data;
-  } catch (e) { 
-      console.error(e);
-      errorMessage.value = e.response?.status === 404 ? "Пользователь не найден." : "Ошибка связи с сервером.";
-  }
+  } catch (e) { errorMessage.value = "Ошибка связи с сервером."; }
+};
+
+const getFilenameFromUrl = (url) => {
+  if (!url) return null;
+  const parts = url.split('/');
+  return parts.pop();
+};
+
+const isProtectedAvatar = (url) => {
+  const filename = getFilenameFromUrl(url);
+  return ['1.png', '2.png', '3.png', '4.png', '5.png', '6.png'].includes(filename);
+};
+
+const deleteAvatarFromStorage = async (url) => {
+  if (!url || isProtectedAvatar(url)) return;
+  const filename = getFilenameFromUrl(url);
+  try {
+    await axios.delete(`/api/storage/avatars/${filename}`, authConfig);
+  } catch (e) { console.warn('Файл не найден в Storage'); }
 };
 
 const triggerFile = () => document.getElementById('avatar-file').click();
@@ -158,114 +179,89 @@ const triggerFile = () => document.getElementById('avatar-file').click();
 const handleCustomPhoto = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
   const formData = new FormData();
   formData.append('file', file);
   try {
+    await deleteAvatarFromStorage(user.value.avatar_url);
     const res = await axios.post('/api/upload/avatars', formData);
     user.value.avatar_url = res.data.url;
-    alert("Фото загружено. Нажмите 'Сохранить всё' внизу.");
-  } catch (err) { alert("Ошибка при загрузке фото"); }
+    alert("Фото загружено. Обязательно нажмите 'Сохранить всё'.");
+  } catch (err) { alert("Ошибка загрузки"); }
+};
+
+const selectDefaultAvatar = async (url) => {
+  if (user.value.avatar_url !== url) {
+    await deleteAvatarFromStorage(user.value.avatar_url);
+    user.value.avatar_url = url;
+  }
+};
+
+const resetToDefault = async () => {
+  await deleteAvatarFromStorage(user.value.avatar_url);
+  user.value.avatar_url = defaultAvatars.value[0];
 };
 
 const saveChanges = async () => {
   const userId = localStorage.getItem('user_id');
 
-  // 1. Обработка пароля (если заполнено поле нового пароля)
   if (passwords.new) {
-    if (!passwords.old) return alert("Введите текущий пароль для подтверждения");
-    if (passwords.new.length < 6) return alert("Новый пароль слишком короткий");
-    if (passwords.new !== passwords.confirm) return alert("Новые пароли не совпадают");
-
+    if (!passwords.old) return alert("Введите текущий пароль");
+    if (passwords.new !== passwords.confirm) return alert("Пароли не совпадают");
     try {
       await axios.post(`/api/users/change-password/${userId}`, {
         oldPassword: passwords.old,
         newPassword: passwords.new
       });
-      // Очистка полей
       passwords.old = ''; passwords.new = ''; passwords.confirm = '';
-    } catch (e) {
-      alert(e.response?.data?.error || "Ошибка при смене пароля");
-      return; // Останавливаем сохранение профиля, если пароль не подошел
-    }
+    } catch (e) { alert(e.response?.data?.error || "Ошибка пароля"); return; }
   }
 
-  // 2. Сохранение профиля
   try {
-    // Удаляем из отправки хэш пароля (он меняется только через спец. роут выше)
     const { password_hash, ...updateData } = user.value;
-
     const res = await axios.put(`/api/users/profile/${userId}`, updateData);
     user.value = res.data;
 
-    if (user.value.saved_address) {
-        appStore.setCity(user.value.saved_address);
-    }
-
     localStorage.setItem('user_name', user.value.first_name);
     localStorage.setItem('user_avatar', user.value.avatar_url);
-
-    alert("Данные успешно сохранены!");
-  } catch (e) { 
-      alert("Ошибка сохранения профиля"); 
-  }
+    alert("Профиль обновлен!");
+  } catch (e) { alert("Ошибка сохранения"); }
 };
 
-const logout = () => {
-    localStorage.clear();
-    router.push('/login');
-};
-
+const logout = () => { localStorage.clear(); router.push('/login'); };
 onMounted(loadData);
 </script>
 
 <style scoped>
+/* ==========================================================================
+   СТРАНИЦА НАСТРОЕК – ПОЛНОСТЬЮ ОБНОВЛЁННЫЙ СТИЛЬ
+   ========================================================================== */
 
 @keyframes fadeSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(25px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulseGlow {
-  0% {
-    box-shadow: 0 0 0 0 var(--primary-light);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(230, 57, 70, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(230, 57, 70, 0);
-  }
+  0% { box-shadow: 0 0 0 0 var(--primary-light); }
+  70% { box-shadow: 0 0 0 12px rgba(230, 57, 70, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
 }
 
 .settings-page {
   padding: 60px 20px;
   display: flex;
   justify-content: center;
-  min-height: 100vh;
-  animation: fadeIn 0.5s ease-out;
   background: var(--bg-body);
+  min-height: calc(100vh - 80px);
+  animation: fadeSlideUp 0.6s ease-out;
 }
 
 .settings-container {
   width: 100%;
   max-width: 1000px;
   background: var(--bg-card);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   padding: 48px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
@@ -275,22 +271,23 @@ onMounted(loadData);
 
 .settings-container:hover {
   box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 
 /* ШАПКА */
 .settings-header {
-  margin-bottom: 40px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: baseline;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 20px;
+  margin-bottom: 40px;
 }
 
 .settings-header h1 {
   font-size: 2.2rem;
-  margin: 0;
   font-weight: 800;
+  margin: 0;
   background: linear-gradient(135deg, var(--primary), var(--accent));
   -webkit-background-clip: text;
   background-clip: text;
@@ -375,24 +372,47 @@ onMounted(loadData);
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 
+.avatar-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
 .btn-upload {
-  display: inline-block;
-  margin: 16px auto 0;
-  background: var(--bg-input);
-  padding: 8px 20px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  color: white;
+  border: none;
+  padding: 8px 24px;
   border-radius: 40px;
-  font-size: 0.85rem;
   font-weight: 700;
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  box-shadow: 0 4px 8px rgba(230, 57, 70, 0.2);
 }
 
 .btn-upload:hover {
-  background: var(--primary-light);
-  color: var(--primary);
-  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(230, 57, 70, 0.3);
+}
+
+.btn-reset-avatar {
+  background: var(--danger-light);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 8px 20px;
+  border-radius: 40px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-reset-avatar:hover {
+  background: var(--danger);
+  color: white;
   transform: translateY(-2px);
 }
 
@@ -423,7 +443,7 @@ onMounted(loadData);
   cursor: pointer;
   border: 3px solid transparent;
   transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-  opacity: 0.7;
+  opacity: 0.8;
   object-fit: cover;
 }
 
@@ -467,6 +487,7 @@ onMounted(loadData);
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
+  margin-bottom: 24px;
 }
 
 .field-box {
@@ -488,7 +509,7 @@ onMounted(loadData);
   padding: 12px 16px;
   border-radius: var(--radius-sm);
   background: var(--bg-input);
-  border: 2px solid transparent;
+  border: 1.5px solid transparent;
   font-size: 0.95rem;
   color: var(--text-main);
   transition: all 0.3s;
@@ -502,7 +523,7 @@ onMounted(loadData);
   transform: scale(1.01);
 }
 
-/* РЕГИОН (СИНИЙ ОТТЕНОК) */
+/* РЕГИОН (стильный блок) */
 .region-section {
   background: linear-gradient(145deg, var(--primary-light), transparent);
   padding: 28px 32px;
@@ -516,7 +537,7 @@ onMounted(loadData);
   box-shadow: var(--shadow-sm);
 }
 
-/* ПАРОЛЬ (РОЗОВЫЙ ОТТЕНОК) */
+/* БЕЗОПАСНОСТЬ (стильный блок) */
 .password-section {
   background: linear-gradient(145deg, var(--danger-light), transparent);
   padding: 28px 32px;
@@ -584,7 +605,7 @@ onMounted(loadData);
   height: 20px;
   background: var(--bg-card);
   border: 2px solid var(--border-color);
-  border-radius: 5px;
+  border-radius: 6px;
   display: inline-block;
   position: relative;
   transition: all 0.2s;
@@ -610,7 +631,7 @@ onMounted(loadData);
   border-color: var(--primary);
 }
 
-/* КНОПКИ ДЕЙСТВИЙ */
+/* ФУТЕРНЫЕ КНОПКИ */
 .settings-footer {
   display: flex;
   justify-content: flex-end;
@@ -685,6 +706,10 @@ onMounted(loadData);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 24px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .loading-box h2 {
