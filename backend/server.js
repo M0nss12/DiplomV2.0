@@ -9,6 +9,10 @@ const nodemailer = require('nodemailer');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
+require('dotenv').config();
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -44,19 +48,15 @@ const DEFAULT_AVATARS = [
 // --- ОБНОВЛЕННЫЙ БЛОК ПОЧТЫ ---
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Использовать SSL
+    port: 587,
+    secure: false, // false для 587 порта
     auth: { 
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS 
     },
-    // КРИТИЧЕСКИЕ НАСТРОЙКИ ДЛЯ ХОСТИНГА:
-    family: 4,            // ПРИНУДИТЕЛЬНО ИСПОЛЬЗОВАТЬ IPv4 (решает ENETUNREACH)
-    connectionTimeout: 10000, // Ждать 10 секунд до обрыва
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    family: 4, // Еще раз подтверждаем IPv4
     tls: {
-        rejectUnauthorized: false // Не блокировать из-за сертификатов Render
+        rejectUnauthorized: false
     }
 });
 
