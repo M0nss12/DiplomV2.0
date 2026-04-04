@@ -43,10 +43,15 @@ const DEFAULT_AVATARS = [
 
 // --- ОБНОВЛЕННЫЙ БЛОК ПОЧТЫ ---
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Обязательно true для 465 порта
     auth: { 
-        user: 'monsswhat@gmail.com', 
-        pass: process.env.EMAIL_PASS // Код dwicolvrsxagwquh из Render Env
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS 
+    },
+    tls: {
+        rejectUnauthorized: false // Помогает обойти ограничения некоторых хостингов
     }
 });
 
