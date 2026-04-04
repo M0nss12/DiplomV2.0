@@ -45,13 +45,18 @@ const DEFAULT_AVATARS = [
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
-    secure: true, // Обязательно true для 465 порта
+    secure: true, // Использовать SSL
     auth: { 
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS 
     },
+    // КРИТИЧЕСКИЕ НАСТРОЙКИ ДЛЯ ХОСТИНГА:
+    family: 4,            // ПРИНУДИТЕЛЬНО ИСПОЛЬЗОВАТЬ IPv4 (решает ENETUNREACH)
+    connectionTimeout: 10000, // Ждать 10 секунд до обрыва
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
     tls: {
-        rejectUnauthorized: false // Помогает обойти ограничения некоторых хостингов
+        rejectUnauthorized: false // Не блокировать из-за сертификатов Render
     }
 });
 
