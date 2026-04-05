@@ -153,9 +153,10 @@
                 </ul>
               </div>
 
+              <!-- Предупреждение о весе (только для межгорода) -->
               <div v-if="shippingBreakdown.weightSurcharge > 0" class="weight-alert">
-                <span>⚖️ Перевес: <b>{{ shippingBreakdown.totalWeight }} кг</b></span>
-                <span class="surcharge">+{{ shippingBreakdown.weightSurcharge }} ₽</span>
+                <span>⚖️ Общий вес межгорода: <b>{{ shippingBreakdown.intercityWeight.toFixed(1) }} кг</b></span>
+                <span class="surcharge">+{{ shippingBreakdown.weightSurcharge }} ₽ (перевес)</span>
               </div>
             </div>
 
@@ -211,7 +212,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive, watch } from 'vue';
+import { ref, onMounted, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useCartStore } from '@/stores/cartStore';
@@ -227,7 +228,7 @@ const savedCards = ref([]);
 const selectedWarehouseId = ref(null);
 const selectedCardId = ref(null);
 
-const checkoutCity = ref(''); // Локальная модель для инпута города
+const checkoutCity = ref('');
 const form = ref({ name: '', phone: '', email: '', payment_method: 'card' });
 
 const showPaymentModal = ref(false);
@@ -243,40 +244,32 @@ const paymentMethods = [
 
 const isSameCity = (c1, c2) => c1?.trim().toLowerCase() === c2?.trim().toLowerCase();
 
-// --- 1. ЛОГИКА ОБНОВЛЕНИЯ ГОРОДА ---
 const updateGlobalCity = async () => {
     if (!checkoutCity.value.trim()) return;
     
     const newCity = checkoutCity.value.trim();
-    appStore.setCity(newCity); // Обновляем в Pinia (меняется шапка и расчеты)
+    appStore.setCity(newCity);
     
-    // Если пользователь авторизован, сохраняем в БД навсегда
     const uid = localStorage.getItem('user_id');
     if (uid) {
         try {
             await axios.put(`/api/users/profile/${uid}`, { saved_address: newCity });
-        } catch (e) { console.error("Ошибка сохранения города в БД"); }
+        } catch (e) { console.error("Ошибка сохранения города"); }
     }
-
-    // Сбрасываем выбранный ПВЗ, так как город изменился
     selectedWarehouseId.value = null;
 };
 
-// Фильтруем ПВЗ для выбранного города
 const localWarehouses = computed(() => {
     return warehouses.value.filter(w => isSameCity(w.city_name, appStore.city) && w.is_pickup_point);
 });
 
-// --- 2. ИСПРАВЛЕННАЯ ЛОГИКА ОСТАТКОВ (МЕЖГОРОД) ---
+// --- ЛОГИКА ОСТАТКОВ (МЕЖГОРОД И ВЕС) ---
 const getStockInCity = (item) => {
     if (!item?.product_stocks) return 0;
-    
     let totalInCity = 0;
+    
     item.product_stocks.forEach(stockRecord => {
-        // Ищем склад из ОБЩЕГО списка складов, чтобы узнать его город
         const wh = warehouses.value.find(hw => hw.id === stockRecord.warehouse_id);
-        
-        // Если город склада совпадает с выбранным городом
         if (wh && isSameCity(wh.city_name, appStore.city)) {
             totalInCity += Number(stockRecord.quantity) || 0;
         }
@@ -285,36 +278,56 @@ const getStockInCity = (item) => {
 };
 
 const shippingBreakdown = computed(() => {
-    if (!selectedWarehouseId.value) return { cost: 0, intercityItems: [], weightSurcharge: 0, totalWeight: 0 };
-    if (cartStore.totalPriceFinal > 50000) return { cost: 0, intercityItems: [], weightSurcharge: 0, totalWeight: 0 };
+    if (!selectedWarehouseId.value) return { cost: 0, intercityItems: [], weightSurcharge: 0, intercityWeight: 0 };
+    // Если заказ больше 50к - доставка полностью бесплатная (даже межгород)
+    if (cartStore.totalPriceFinal > 50000) return { cost: 0, intercityItems: [], weightSurcharge: 0, intercityWeight: 0 };
     
     let intercityItems = [];
+    let intercityTotalWeight = 0; // Вес ТОЛЬКО межгородских товаров
     
     cartStore.items.forEach(item => { 
-      const cityStock = getStockInCity(item); // Сколько есть в ЭТОМ городе
+      const cityStock = getStockInCity(item);
+      const neededQty = item.quantity;
       
-      // Если хотят купить больше, чем есть во ВСЕМ городе - остаток едет межгородом
-      if (item.quantity > cityStock) {
+      // Если товара в городе меньше, чем заказали, остаток поедет межгородом
+      if (neededQty > cityStock) {
+        const intercityQty = neededQty - cityStock; // Сколько штук поедет из другого региона
+        
         intercityItems.push({ 
             name: item.name, 
             id: item.id, 
-            qty: item.quantity - cityStock
+            qty: intercityQty
         });
+
+        // Добавляем к межгородскому весу (вес 1 шт * количество межгорода)
+        const itemWeight = Number(item.weight_kg) || 0;
+        intercityTotalWeight += (itemWeight * intercityQty);
       }
     });
     
-    const totalWeight = Math.ceil(cartStore.totalWeight || 0);
-    const weightSurcharge = totalWeight > 10 ? (totalWeight - 10) * 50 : 0;
-    
-    if (intercityItems.length === 0 && weightSurcharge === 0) {
-      return { cost: 0, intercityItems: [], weightSurcharge: 0, totalWeight };
+    // Если нет товаров для межгорода, доставка бесплатная
+    if (intercityItems.length === 0) {
+      return { cost: 0, intercityItems: [], weightSurcharge: 0, intercityWeight: 0 };
     }
 
-    // Если есть хотя бы 1 товар из другого города - базовая цена 800
-    const baseCost = intercityItems.length > 0 ? 800 : 0;
+    // Расчет цены для межгорода: База 800р + (Перевес свыше 10кг * 50р)
+    const baseCost = 800;
+    let weightSurcharge = 0;
+    
+    const roundedWeight = Math.ceil(intercityTotalWeight); // Округляем вес в большую сторону
+    
+    if (roundedWeight > 10) {
+        weightSurcharge = (roundedWeight - 10) * 50;
+    }
+    
     const finalCost = baseCost + weightSurcharge;
 
-    return { cost: finalCost, intercityItems, weightSurcharge, totalWeight };
+    return { 
+        cost: finalCost, 
+        intercityItems, 
+        weightSurcharge, 
+        intercityWeight: intercityTotalWeight // Возвращаем точный вес (с точкой) для красивого вывода
+    };
 });
 
 const getSelectedCardMask = () => {
@@ -323,7 +336,7 @@ const getSelectedCardMask = () => {
 };
 
 onMounted(async () => {
-    checkoutCity.value = appStore.city; // Инициализируем инпут текущим городом
+    checkoutCity.value = appStore.city;
 
     const uid = localStorage.getItem('user_id');
     try {

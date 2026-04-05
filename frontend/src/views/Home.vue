@@ -7,7 +7,7 @@
       <div v-for="n in 30" :key="n" class="sparkle" :style="getRandomSparkleStyle()"></div>
     </div>
 
-    <!-- 1. ГЕРОЙСКИЙ БЛОК (без параллакса) -->
+    <!-- 1. ГЕРОЙСКИЙ БЛОК (исправлен overflow) -->
     <section class="hero-section">
       <div class="hero-bg-gradient"></div>
       <div class="hero-particles"></div>
@@ -100,7 +100,7 @@
       </div>
     </section>
 
-    <!-- 3. ГОРЯЧИЕ ПРЕДЛОЖЕНИЯ (КАРУСЕЛЬ, без автопрокрутки) -->
+    <!-- 3. ГОРЯЧИЕ ПРЕДЛОЖЕНИЯ (КАРУСЕЛЬ) -->
     <section v-if="hotDeals.length" class="carousel-section">
       <div class="carousel-header">
         <h2>🔥 Горячие предложения</h2>
@@ -154,7 +154,7 @@
       </div>
     </section>
 
-    <!-- 4. ТОВАРЫ С РЕЙТИНГОМ 5 (КАРУСЕЛЬ, без автопрокрутки) -->
+    <!-- 4. ТОВАРЫ С РЕЙТИНГОМ 5 (КАРУСЕЛЬ) -->
     <section v-if="topRatedProducts.length" class="carousel-section top-rated-carousel">
       <div class="carousel-header">
         <h2>⭐ Товары с рейтингом 5.0</h2>
@@ -211,7 +211,7 @@
     </section>
     <div v-else class="loading-placeholder">Загрузка товаров...</div>
 
-    <!-- 5. БРЕНДЫ (ДВИЖУЩАЯСЯ ЛЕНТА) – ВОССТАНОВЛЕНО -->
+    <!-- 5. БРЕНДЫ (ДВИЖУЩАЯСЯ ЛЕНТА) -->
     <section class="brands-section">
       <div class="section-header">
         <h2>Наши официальные партнёры</h2>
@@ -221,7 +221,6 @@
           <div v-for="brand in brands" :key="brand.id" class="brand-item">
             <img :src="brand.logo_url" :title="brand.name" loading="lazy" />
           </div>
-          <!-- Дублируем для бесконечности -->
           <div v-for="brand in brands" :key="'dup-' + brand.id" class="brand-item">
             <img :src="brand.logo_url" :title="brand.name" loading="lazy" />
           </div>
@@ -234,7 +233,7 @@
       </div>
     </section>
 
-    <!-- 6. НЕДАВНО ПРОСМОТРЕННЫЕ (КАРУСЕЛЬ, без автопрокрутки) -->
+    <!-- 6. НЕДАВНО ПРОСМОТРЕННЫЕ (КАРУСЕЛЬ) -->
     <section v-if="recentProducts.length" class="carousel-section">
       <div class="carousel-header">
         <h2>🕒 Вы недавно смотрели</h2>
@@ -328,56 +327,44 @@ const router = useRouter();
 const appStore = useAppStore();
 const cartStore = useCartStore();
 
-// Данные
 const brands = ref([]);
 const hotDeals = ref([]);
 const topRatedProducts = ref([]);
 const recentProducts = ref([]);
 const wishlistIds = ref([]);
-
-// UI состояние
 const searchQuery = ref('');
 const quickViewProduct = ref(null);
 const isMobile = ref(false);
 
-// Умный поиск
 const isHeroSearchOpen = ref(false);
 const heroSearchRef = ref(null);
 const heroSearchResults = ref({ products: [], categories: [] });
 let heroSearchTimer = null;
 
-// Refs для каруселей
 const hotDealsRef = ref(null);
 const recentRef = ref(null);
 const topRatedRef = ref(null);
 
-// Drag-to-scroll для обычных каруселей
 let isDragging = false;
 let startX = 0;
 let scrollLeft = 0;
-
-// Drag для топ-рейтинга
 let isDraggingTopRated = false;
 let startXTopRated = 0;
 let scrollLeftTopRated = 0;
 
-// 3D Tilt
 const tiltStyles = ref({});
 
-// Анимация счётчиков
 const featureRefs = ref([]);
 const animatedFeatures = ref([false, false, false]);
 const animatedCounts = ref([0, 0, 0]);
 let observer = null;
 
-// Особенности с числами
 const features = ref([
   { icon: '🚚', title: 'Умная логистика', description: 'Бесплатное перемещение товаров между складами вашего города.', countNum: 24, countUnit: 'часа', countText: 'Быстро' },
   { icon: '🛡️', title: '100% Оригинал', description: 'Прямые контракты с производителями. Гарантия до 24 месяцев.', countNum: 100, countUnit: '%', countText: 'Надежно' },
   { icon: '↩️', title: 'Легкий возврат', description: 'Не подошла деталь? Вернем деньги без лишних вопросов в течение 14 дней.', countNum: 14, countUnit: 'дней', countText: 'Безопасно' },
 ]);
 
-// Вспомогательные функции
 const calcDiscount = (oldP, newP) => Math.round(((oldP - newP) / oldP) * 100);
 const isSameCity = (c1, c2) => c1?.trim().toLowerCase() === c2?.trim().toLowerCase();
 
@@ -390,7 +377,6 @@ const getStockInCity = (p) => {
 
 const getTotalStock = (p) => p.product_stocks?.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0) || 0;
 
-// Загрузка данных
 const loadData = async () => {
   try {
     const [b, h, pRes] = await Promise.all([
@@ -418,7 +404,6 @@ const loadData = async () => {
   }
 };
 
-// Поиск
 const handleHeroSearch = () => {
   clearTimeout(heroSearchTimer);
   if (searchQuery.value.length < 2) {
@@ -453,7 +438,6 @@ const handleClickOutside = (event) => {
   }
 };
 
-// Избранное
 const toggleWishlist = async (id) => {
   const uid = localStorage.getItem('user_id');
   if (!uid) return alert('Войдите в аккаунт.');
@@ -465,19 +449,18 @@ const toggleWishlist = async (id) => {
       await axios.post('/api/wishlist', { user_id: uid, product_id: id });
       wishlistIds.value.push(id);
     }
+    window.dispatchEvent(new Event('wishlist-updated'));
   } catch (e) {
     console.error(e);
   }
 };
 
-// Корзина
 const handleAddToCart = (p) => {
   cartStore.addToCart({ ...p, stock_quantity: getTotalStock(p) });
   alert(`Товар "${p.name}" добавлен в корзину!`);
   closeQuickView();
 };
 
-// Карусели (общие)
 const scroll = (name, dir) => {
   const el = name === 'hotDeals' ? hotDealsRef.value : recentRef.value;
   if (el) el.scrollBy({ left: 320 * dir, behavior: 'smooth' });
@@ -506,7 +489,6 @@ const stopDrag = () => {
   if (el) el.classList.remove('dragging');
 };
 
-// Карусель для топ-рейтинга
 const scrollTopRated = (dir) => {
   if (topRatedRef.value) {
     topRatedRef.value.scrollBy({ left: 320 * dir, behavior: 'smooth' });
@@ -535,7 +517,6 @@ const stopDragTopRated = () => {
   if (topRatedRef.value) topRatedRef.value.classList.remove('dragging');
 };
 
-// 3D Tilt
 const handle3DTilt = (e, id) => {
   const card = e.currentTarget;
   const rect = card.getBoundingClientRect();
@@ -554,7 +535,6 @@ const resetTilt = (id) => {
 
 const getTiltStyle = (id) => tiltStyles.value[id] || '';
 
-// Быстрый просмотр
 const openQuickView = async (product) => {
   try {
     const res = await axios.get(`/api/products/${product.id}`);
@@ -568,7 +548,6 @@ const closeQuickView = () => {
   quickViewProduct.value = null;
 };
 
-// Анимация счётчиков
 const animateCounter = (el, target, index) => {
   let start = 0;
   const duration = 1500;
@@ -586,7 +565,6 @@ const animateCounter = (el, target, index) => {
   requestAnimationFrame(step);
 };
 
-// Intersection Observer для анимации счётчиков
 const setupObservers = () => {
   const featureElements = document.querySelectorAll('.feature-card');
   const countObserver = new IntersectionObserver((entries) => {
@@ -605,7 +583,6 @@ const setupObservers = () => {
   featureElements.forEach(el => countObserver.observe(el));
 };
 
-// Генерация случайных стилей для искр
 const getRandomSparkleStyle = () => {
   return {
     left: Math.random() * 100 + '%',
@@ -616,7 +593,6 @@ const getRandomSparkleStyle = () => {
   };
 };
 
-// Определение мобильного устройства
 const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768;
 };
@@ -640,7 +616,6 @@ watch(() => appStore.city, loadData);
 </script>
 
 <style scoped>
-
 /* Базовые анимации */
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(30px); }
@@ -707,12 +682,12 @@ watch(() => appStore.city, loadData);
   animation: sparkle 8s linear infinite;
 }
 
-/* ========== ГЕРОЙСКИЙ БЛОК (без параллакса) ========== */
+/* ========== ГЕРОЙСКИЙ БЛОК (overflow: visible – чтобы выпадашка не обрезалась) ========== */
 .hero-section {
   position: relative;
   border-radius: var(--radius-lg);
   margin-bottom: 60px;
-  overflow: hidden;
+  overflow: visible !important; /* КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ */
   box-shadow: var(--shadow-md);
 }
 
@@ -726,6 +701,7 @@ watch(() => appStore.city, loadData);
   background-size: 200% 200%;
   animation: gradientShift 12s ease infinite;
   z-index: 0;
+  pointer-events: none;
 }
 
 .hero-particles {
@@ -776,7 +752,7 @@ watch(() => appStore.city, loadData);
   max-width: 650px;
   margin: 0 auto 40px;
   position: relative;
-  z-index: 20;
+  z-index: 100; /* Увеличил, чтобы перекрывать */
 }
 
 .hero-search-bar {
@@ -826,7 +802,7 @@ watch(() => appStore.city, loadData);
   animation: pulseGlow 0.8s infinite;
 }
 
-/* Выпадающий список */
+/* ВЫПАДАЮЩИЙ СПИСОК – теперь будет поверх всего и не обрезается */
 .hero-search-dropdown {
   position: absolute;
   top: calc(100% + 12px);
@@ -837,14 +813,28 @@ watch(() => appStore.city, loadData);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-lg);
-  max-height: 480px;
+  max-height: min(480px, 50vh);
   overflow-y: auto;
-  z-index: 30;
+  overscroll-behavior: contain;
+  z-index: 1000;
+}
+
+.hero-search-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+.hero-search-dropdown::-webkit-scrollbar-track {
+  background: var(--bg-input);
+  border-radius: 3px;
+}
+.hero-search-dropdown::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
 }
 
 .hs-group {
   margin-bottom: 8px;
 }
+
 .hs-label {
   font-size: 0.7rem;
   text-transform: uppercase;
@@ -852,7 +842,13 @@ watch(() => appStore.city, loadData);
   font-weight: 800;
   color: var(--text-muted);
   padding: 8px 20px;
+  background: var(--bg-input);
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(4px);
+  z-index: 2;
 }
+
 .hs-item {
   display: flex;
   align-items: center;
@@ -861,11 +857,14 @@ watch(() => appStore.city, loadData);
   text-decoration: none;
   color: var(--text-main);
   transition: var(--transition);
+  cursor: pointer;
 }
+
 .hs-item:hover {
   background: var(--primary-light);
   transform: translateX(5px);
 }
+
 .hs-img {
   width: 44px;
   height: 44px;
@@ -874,9 +873,28 @@ watch(() => appStore.city, loadData);
   border-radius: var(--radius-sm);
   padding: 4px;
 }
+
+.hs-info {
+  flex: 1;
+}
+
+.hs-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
 .hs-price {
   color: var(--success);
   font-weight: 700;
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+.hs-none {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 /* Кнопки героя */
@@ -977,7 +995,7 @@ watch(() => appStore.city, loadData);
   opacity: 1;
 }
 
-/* ========== КАРУСЕЛИ И КАРТОЧКИ (БЕЗ SHINE) ========== */
+/* ========== КАРУСЕЛИ И КАРТОЧКИ ========== */
 .carousel-section {
   margin-bottom: 60px;
 }
@@ -1178,7 +1196,7 @@ watch(() => appStore.city, loadData);
   backdrop-filter: blur(4px);
 }
 
-/* ========== БРЕНДЫ (ДВИЖУЩАЯСЯ ЛЕНТА) – ВОССТАНОВЛЕНО ========== */
+/* ========== БРЕНДЫ ========== */
 .brands-section {
   margin-bottom: 60px;
   position: relative;
@@ -1345,5 +1363,14 @@ watch(() => appStore.city, loadData);
   .modal-images img { height: 200px; }
   .product-card { min-width: 220px; }
   .gear, .sparkle-container { display: none; }
+  .hero-search-dropdown {
+    max-height: min(400px, 40vh);
+    top: calc(100% + 8px);
+  }
+  .hs-label {
+    position: sticky;
+    top: 0;
+    background: var(--bg-input);
+  }
 }
 </style>

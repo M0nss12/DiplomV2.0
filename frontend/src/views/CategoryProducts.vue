@@ -190,6 +190,7 @@ const toggleWishlist = async (id) => {
             await axios.post('/api/wishlist', { user_id: uid, product_id: id });
             wishlistIds.value.push(id);
         }
+        window.dispatchEvent(new Event('wishlist-updated'));
     } catch (e) { console.error(e); }
 };
 

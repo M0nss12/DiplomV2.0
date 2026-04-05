@@ -473,10 +473,30 @@ app.get('/api/reviews/:productId', async (req, res) => {
 });
 app.post('/api/reviews', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('reviews').insert([{ ...req.body, is_approved: true, created_at: new Date().toISOString() }]).select();
+        // Мы берем из тела запроса только те данные, которые РЕАЛЬНО нужны базе
+        const { product_id, user_id, rating, comment, pros, cons, images } = req.body;
+
+        const { data, error } = await supabase
+            .from('reviews')
+            .insert([{ 
+                product_id, 
+                user_id, 
+                rating, 
+                comment, 
+                pros, 
+                cons, 
+                images: Array.isArray(images) ? images : [], // Убеждаемся, что это массив
+                is_approved: true, 
+                created_at: new Date().toISOString() 
+            }])
+            .select();
+
         if (error) throw error;
         res.json(data[0]);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        console.error("Ошибка при сохранении отзыва:", e.message);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 app.patch('/api/reviews/:id', async (req, res) => {
     try {
@@ -524,6 +544,7 @@ app.delete('/api/admin/:table/:id', verifyAdmin, async (req, res) => {
     res.send('Удалено');
 });
 
+
 // =====================================================================
 // 🚨 ГЛОБАЛЬНЫЙ ОБРАБОТЧИК
 // =====================================================================
@@ -534,4 +555,7 @@ app.use((err, req, res, next) => {
 
 app.get(/(.*)/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () => console.log(`🚀 ApexDrive Server Active: http://localhost:${PORT}`));
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => console.log(`🚀 ApexDrive Server Active: http://localhost:${PORT}`));
+}
+module.exports = app; // Экспортируем для тестов

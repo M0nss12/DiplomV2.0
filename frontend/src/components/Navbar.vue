@@ -2,29 +2,26 @@
   <nav class="main-navbar">
     <div class="nav-container">
       
-      <!-- ЛЕВАЯ ЧАСТЬ: ЛОГО, ГОРОД И МЕНЮ -->
-      <div class="nav-section">
-        <router-link to="/" class="logo"><strong>ApexDrive</strong></router-link>
+      <!-- ЛЕВАЯ ЧАСТЬ: ЛОГО, ГОРОД, МЕНЮ -->
+      <div class="nav-section left-section">
+        <router-link to="/" class="logo">
+          <strong>ApexDrive</strong>
+        </router-link>
         
-        <!-- БЛОК ВЫБОРА ГОРОДА -->
         <div class="city-selector-container" ref="cityMenu">
-          <button @click="toggleCityDropdown" class="city-btn">
-            📍 {{ appStore.city || 'Выберите город' }}
+          <button @click="toggleCityDropdown" class="city-btn glass-btn">
+            <span class="city-icon">📍</span>
+            {{ appStore.city || 'Выберите город' }}
+            <span class="dropdown-arrow" :class="{ rotate: isCityDropdownOpen }">▼</span>
           </button>
-          
           <transition name="fade">
-            <div v-if="isCityDropdownOpen" class="dropdown-menu city-menu">
+            <div v-if="isCityDropdownOpen" class="dropdown-menu city-menu glass-card">
               <div class="city-search">
-                <input 
-                  v-model="citySearch" 
-                  placeholder="Поиск города..." 
-                  @keyup.enter="selectCustomCity"
-                  @click.stop 
-                />
+                <input v-model="citySearch" placeholder="Поиск города..." @keyup.enter="selectCustomCity" @click.stop />
               </div>
               <div class="city-list">
                 <button v-if="citySearch && !exactMatch" @click="selectCustomCity" class="dropdown-item custom-option">
-                  ✨ Использовать: "<b>{{ citySearch }}</b>"
+                  ✨ Использовать: <b>"{{ citySearch }}"</b>
                 </button>
                 <button v-for="city in filteredCities" :key="city" @click="selectCity(city)" class="dropdown-item" :class="{ active: city === appStore.city }">
                   {{ city }}
@@ -41,10 +38,10 @@
         </div>
       </div>
 
-      <!-- ЦЕНТРАЛЬНАЯ ЧАСТЬ: УМНЫЙ ПОИСК -->
+      <!-- ЦЕНТРАЛЬНАЯ ЧАСТЬ: ПОИСК -->
       <div class="search-bar-container" ref="searchRef">
-        <div class="search-input-wrapper">
-          <span class="search-icon-inline">🔍</span>
+        <div class="search-input-wrapper glass-card">
+          <span class="search-icon">🔍</span>
           <input 
             v-model="searchQuery" 
             type="text" 
@@ -56,7 +53,7 @@
         </div>
 
         <transition name="fade">
-          <div v-if="isSearchOpen && searchQuery.length >= 2" class="search-dropdown">
+          <div v-if="isSearchOpen && searchQuery.length >= 2" class="search-dropdown glass-card">
             <div v-if="filteredPages.length" class="s-group">
               <div class="s-label">Разделы</div>
               <router-link v-for="p in filteredPages" :key="p.path" :to="p.path" class="s-item" @click="closeSearch">
@@ -85,107 +82,70 @@
       </div>
 
       <!-- ПРАВАЯ ЧАСТЬ -->
-      <div class="nav-section user-actions">
+      <div class="nav-section right-section">
         
-        <!-- 🌓 АНИМИРОВАННЫЙ ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ -->
-        <label class="switch">
+        <!-- ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ -->
+        <label class="theme-switch">
           <input type="checkbox" v-model="isDark" @change="applyTheme" />
           <span class="slider">
-            <div class="moons-hole">
-              <div class="moon-hole"></div>
-              <div class="moon-hole"></div>
-              <div class="moon-hole"></div>
-            </div>
-            <div class="black-clouds">
-              <div class="black-cloud"></div>
-              <div class="black-cloud"></div>
-              <div class="black-cloud"></div>
-            </div>
-            <div class="clouds">
-              <div class="cloud"></div>
-              <div class="cloud"></div>
-              <div class="cloud"></div>
-              <div class="cloud"></div>
-              <div class="cloud"></div>
-              <div class="cloud"></div>
-              <div class="cloud"></div>
-            </div>
-            <div class="stars">
-              <svg v-for="n in 5" :key="n" class="star" viewBox="0 0 20 20">
-                <path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path>
-              </svg>
-            </div>
+            <span class="sun">☀️</span>
+            <span class="moon">🌙</span>
           </span>
         </label>
 
-        <router-link to="/wishlist" class="nav-icon-link" title="Избранное">
-          <span class="icon">❤</span>
+        <!-- ИЗБРАННОЕ (УВЕЛИЧЕННОЕ СЕРДЕЧКО) -->
+        <router-link to="/wishlist" class="nav-icon-link wishlist-link" title="Избранное">
+          <div class="icon-with-badge">
+            <span class="heart-icon">❤️</span>
+            <span v-if="wishlistCount > 0" class="badge wishlist-badge">{{ wishlistCount }}</span>
+          </div>
         </router-link>
 
         <div class="divider"></div>
 
         <!-- ПРОФИЛЬ / АВТОРИЗАЦИЯ -->
         <div v-if="!userId" class="auth-links">
-          <router-link to="/login">Войти</router-link>
-          <router-link to="/register" class="reg-btn">Регистрация</router-link>
+          <router-link to="/login" class="auth-link">Войти</router-link>
+          <router-link to="/register" class="auth-link reg-btn">Регистрация</router-link>
         </div>
 
         <div v-else class="user-profile-container" ref="profileMenu">
           <div class="profile-trigger" @click="toggleProfileDropdown">
             <img :src="userAvatar || '/assets/images/avatars/1.png'" class="nav-avatar" />
             <span class="user-display-name">{{ userName }}</span>
-            <span class="arrow" :class="{ 'rotate': isProfileDropdownOpen }">▼</span>
+            <span class="dropdown-arrow" :class="{ rotate: isProfileDropdownOpen }">▼</span>
           </div>
           
           <transition name="fade">
-            <div v-if="isProfileDropdownOpen" class="dropdown-menu profile-menu">
-              <router-link v-if="userRole === 'admin'" to="/admin" class="dropdown-item admin-btn">
+            <div v-if="isProfileDropdownOpen" class="dropdown-menu profile-menu glass-card">
+              <router-link v-if="userRole === 'admin'" to="/admin" class="dropdown-item admin-item">
                 <span class="menu-icon">🛡️</span> <b>Админ-панель</b>
               </router-link>
-              <hr v-if="userRole === 'admin'" />
+              <hr v-if="userRole === 'admin'" class="dropdown-divider" />
               <router-link to="/profile" class="dropdown-item"><span class="menu-icon">👤</span> Профиль</router-link>
               <router-link to="/orders" class="dropdown-item"><span class="menu-icon">📦</span> Заказы</router-link>
-              <router-link to="/wishlist" class="dropdown-item"><span class="menu-icon">❤</span> Избранное</router-link>
+              <router-link to="/wishlist" class="dropdown-item"><span class="menu-icon">❤️</span> Избранное</router-link>
               <router-link to="/settings" class="dropdown-item"><span class="menu-icon">⚙️</span> Настройки</router-link>
-              <hr />
-              <button @click="handleLogout" class="dropdown-item logout"><span class="menu-icon">🚪</span> Выйти</button>
+              <hr class="dropdown-divider" />
+              <button @click="handleLogout" class="dropdown-item logout-item"><span class="menu-icon">🚪</span> Выйти</button>
             </div>
           </transition>
         </div>
 
-        <!-- КОРЗИНА (Компактная версия для NavBar) -->
-        <div class="card">
-          <div class="card-wrapper">
-            <!-- ИКОНКА СЛЕВА -->
-            <div class="card-icon">
-              <div class="icon-cart-box">
-                <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 576 512">
-                  <path fill="currentColor" d="M0 24C0 10.7 10.7 0 24 0H69.5c22 0 41.5 12.8 50.6 32h411c26.3 0 45.5 25 38.6 50.4l-41 152.3c-8.5 31.4-37 53.3-69.5 53.3H170.7l5.4 28.5c2.2 11.3 12.1 19.5 23.6 19.5H488c13.3 0 24 10.7 24 24s-10.7 24-24 24H199.7c-34.6 0-64.3-24.6-70.7-58.5L77.4 54.5c-.7-3.8-4-6.5-7.9-6.5H24C10.7 48 0 37.3 0 24zM128 464a48 48 0 1 1 96 0 48 48 0 1 1 -96 0zm336-48a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"></path>
-                </svg>
-              </div>
-            </div>
-
-            <!-- СОДЕРЖИМОЕ СПРАВА -->
-            <div class="card-content">
-              <!-- Верхняя строка: Корзина + Количество товаров -->
-              <div class="card-top">
-                <span class="card-title">Корзина</span>
-              </div>
-              
-              <!-- Нижняя строка: Сумма + Кнопка Перейти -->
-              <div class="card-bottom">
-                <span class="product-price">{{ cartStore.totalPriceFinal || 0 }} ₽</span>
-                <button class="button" @click="router.push('/cart')">
-                  Перейти
-                  <svg class="icon-btn" viewBox="0 0 24 24" fill="currentColor">
-                    <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.28 10.28a.75.75 0 000-1.06l-3-3a.75.75 0 10-1.06 1.06l1.72 1.72H8.25a.75.75 0 000 1.5h5.69l-1.72 1.72a.75.75 0 101.06 1.06l3-3z" clip-rule="evenodd"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
+        <!-- КОРЗИНА (СТИЛИЗОВАННАЯ КАРТОЧКА) -->
+        <div class="cart-card" @click="router.push('/cart')">
+          <div class="cart-icon-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" height="22" width="22" viewBox="0 0 576 512">
+              <path fill="currentColor" d="M0 24C0 10.7 10.7 0 24 0H69.5c22 0 41.5 12.8 50.6 32h411c26.3 0 45.5 25 38.6 50.4l-41 152.3c-8.5 31.4-37 53.3-69.5 53.3H170.7l5.4 28.5c2.2 11.3 12.1 19.5 23.6 19.5H488c13.3 0 24 10.7 24 24s-10.7 24-24 24H199.7c-34.6 0-64.3-24.6-70.7-58.5L77.4 54.5c-.7-3.8-4-6.5-7.9-6.5H24C10.7 48 0 37.3 0 24zM128 464a48 48 0 1 1 96 0 48 48 0 1 1 -96 0zm336-48a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/>
+            </svg>
+            <span v-if="cartItemsCount > 0" class="badge cart-badge">{{ cartItemsCount }}</span>
           </div>
+          <div class="cart-info">
+            <div class="cart-title">Корзина</div>
+            <div class="cart-total">{{ cartStore.totalPriceFinal || 0 }} ₽</div>
+          </div>
+          <div class="cart-arrow">→</div>
         </div>
-
       </div>
     </div>
   </nav>
@@ -198,11 +158,10 @@ import axios from 'axios';
 import { useCartStore } from '@/stores/cartStore';
 import { useAppStore } from '@/stores/appStore';
 
-// --- НАСТРОЙКА AXIOS ---
+// Настройка заголовков axios
 const storedId = localStorage.getItem('user_id');
 const storedName = localStorage.getItem('user_name');
 const storedRole = localStorage.getItem('role');
-
 if (storedId) axios.defaults.headers.common['x-user-id'] = storedId;
 if (storedName) axios.defaults.headers.common['x-user-name'] = encodeURIComponent(storedName);
 if (storedRole) axios.defaults.headers.common['x-user-role'] = storedRole;
@@ -211,14 +170,31 @@ const router = useRouter();
 const cartStore = useCartStore();
 const appStore = useAppStore();
 
-const userId = ref(null);
-const userName = ref('');
-const userAvatar = ref('');
-const userRole = ref(''); 
+// Пользовательские данные
+const userId = ref(storedId);
+const userName = ref(storedName || '');
+const userAvatar = ref(localStorage.getItem('user_avatar') || '');
+const userRole = ref(storedRole || '');
 
-// --- ЛОГИКА ТЕМЫ ---
+// Счётчики
+const wishlistCount = ref(0);
+const cartItemsCount = computed(() => {
+  if (!cartStore.items?.length) return 0;
+  return cartStore.items.reduce((total, item) => total + (item.quantity || 1), 0);
+});
+
+// Загрузка количества избранного
+const loadWishlistCount = async () => {
+  if (userId.value) {
+    try {
+      const res = await axios.get(`/api/wishlist/${userId.value}`);
+      wishlistCount.value = res.data.length;
+    } catch (e) { console.error("Ошибка загрузки избранного", e); }
+  }
+};
+
+// Тема
 const isDark = ref(false);
-
 const applyTheme = () => {
   if (isDark.value) {
     document.body.classList.add('dark-theme');
@@ -229,7 +205,7 @@ const applyTheme = () => {
   }
 };
 
-// --- ЛОГИКА ПОИСКА ---
+// Поиск
 const searchQuery = ref('');
 const isSearchOpen = ref(false);
 const searchRef = ref(null);
@@ -248,12 +224,14 @@ const filteredPages = computed(() => {
   return staticPages.filter(p => p.name.toLowerCase().includes(q) || p.tags.toLowerCase().includes(q));
 });
 
+const noResults = computed(() => !filteredPages.value.length && !searchResults.value.products.length && !searchResults.value.categories.length);
+
 const handleGlobalSearch = () => {
   clearTimeout(searchTimer);
   if (searchQuery.value.length < 2) return;
   searchTimer = setTimeout(async () => {
     try {
-      const res = await axios.get(`http://localhost:3000/api/global-search?q=${searchQuery.value}`);
+      const res = await axios.get(`/api/global-search?q=${searchQuery.value}`);
       searchResults.value = res.data;
     } catch (e) { console.error("Search error:", e); }
   }, 300);
@@ -262,11 +240,18 @@ const handleGlobalSearch = () => {
 const clearSearch = () => { searchQuery.value = ''; isSearchOpen.value = false; };
 const closeSearch = () => isSearchOpen.value = false;
 
-// --- ЛОГИКА ГОРОДА ---
+// Город
 const isCityDropdownOpen = ref(false);
 const cityMenu = ref(null);
 const availableCities = ref([]);
 const citySearch = ref('');
+
+const loadCities = async () => {
+  try {
+    const res = await axios.get('/api/admin/warehouses', { headers: { 'x-admin-key': 'my_super_secret_admin_123' } });
+    availableCities.value = Array.from(new Set(res.data.map(w => w.city_name))).sort();
+  } catch (e) { availableCities.value = ['Москва', 'Санкт-Петербург', 'Иркутск', 'Ангарск']; }
+};
 
 const updateCityInDB = async (newCity) => {
   if (userId.value) {
@@ -294,47 +279,21 @@ const selectCustomCity = async () => {
 
 const exactMatch = computed(() => availableCities.value.some(c => c.toLowerCase() === citySearch.value.toLowerCase().trim()));
 const filteredCities = computed(() => citySearch.value ? availableCities.value.filter(c => c.toLowerCase().includes(citySearch.value.toLowerCase())) : availableCities.value);
-const noResults = computed(() => !filteredPages.value.length && !searchResults.value.products.length && !searchResults.value.categories.length);
 
-// --- КЛИКИ И ДРОПДАУНЫ ---
+// Профиль
 const isProfileDropdownOpen = ref(false);
 const profileMenu = ref(null);
-
 const toggleProfileDropdown = () => { isProfileDropdownOpen.value = !isProfileDropdownOpen.value; isCityDropdownOpen.value = false; };
 const toggleCityDropdown = () => { isCityDropdownOpen.value = !isCityDropdownOpen.value; isProfileDropdownOpen.value = false; };
 
+// Закрытие кликом вне
 const handleClickOutside = (event) => {
   if (profileMenu.value && !profileMenu.value.contains(event.target)) isProfileDropdownOpen.value = false;
   if (cityMenu.value && !cityMenu.value.contains(event.target)) isCityDropdownOpen.value = false;
   if (searchRef.value && !searchRef.value.contains(event.target)) isSearchOpen.value = false;
 };
 
-const loadCities = async () => {
-  try {
-    const res = await axios.get('/api/admin/warehouses', { headers: { 'x-admin-key': 'my_super_secret_admin_123' }});
-    availableCities.value = Array.from(new Set(res.data.map(w => w.city_name))).sort();
-  } catch (e) { availableCities.value = ['Москва', 'Санкт-Петербург', 'Иркутск', 'Ангарск']; }
-};
-
-onMounted(() => {
-  userId.value = localStorage.getItem('user_id');
-  userName.value = localStorage.getItem('user_name');
-  userAvatar.value = localStorage.getItem('user_avatar');
-  userRole.value = localStorage.getItem('role'); 
-  
-  // Проверка сохраненной темы
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    isDark.value = true;
-    document.body.classList.add('dark-theme');
-  }
-
-  loadCities();
-  window.addEventListener('click', handleClickOutside);
-});
-
-onUnmounted(() => window.removeEventListener('click', handleClickOutside));
-
+// Выход
 const handleLogout = () => {
   if (confirm('Выйти из системы?')) {
     localStorage.clear();
@@ -342,220 +301,619 @@ const handleLogout = () => {
     setTimeout(() => window.location.reload(), 100);
   }
 };
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    isDark.value = true;
+    document.body.classList.add('dark-theme');
+  }
+  loadCities();
+  loadWishlistCount();
+  window.addEventListener('wishlist-updated', loadWishlistCount);
+  window.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('wishlist-updated', loadWishlistCount);
+});
 </script>
 
 <style scoped>
 /* ==========================================================================
-   ОСНОВНЫЕ СТИЛИ NAVBAR
+   ГЛАВНАЯ НАВИГАЦИЯ – СТИЛЬ В ЕДИНОЙ СТЕКЛЯННОЙ ЭСТЕТИКЕ
    ========================================================================== */
-.main-navbar {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border-color);
-    height: 85px; 
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    transition: var(--transition);
-}
 
-body.dark-theme .main-navbar { background: rgba(15, 23, 42, 0.85); }
+.main-navbar {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-color);
+  height: 80px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+body.dark-theme .main-navbar {
+  background: rgba(20, 30, 45, 0.9);
+}
 
 .nav-container {
-    max-width: 100%; /* НА ВСЮ ШИРИНУ СТРАНИЦЫ */
-    width: 100%;
-    padding: 0 30px; /* Отступы по краям */
-    box-sizing: border-box;
-    height: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 94%;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
 }
 
-.nav-section { display: flex; align-items: center; gap: 15px; }
-.logo { text-decoration: none; font-size: 1.6rem; }
-.logo strong { font-weight: 900; background: linear-gradient(135deg, var(--primary) 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+/* ЛЕВАЯ СЕКЦИЯ */
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
 
+.logo {
+  text-decoration: none;
+  font-size: 1.7rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: transform 0.3s;
+}
+.logo:hover {
+  transform: scale(1.02);
+}
+
+/* КНОПКА ГОРОДА */
+.city-selector-container {
+  position: relative;
+}
 .city-btn {
-    background: var(--bg-input); border: 1px solid var(--border-color);
-    padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; color: var(--text-main); cursor: pointer;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 40px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: var(--transition-bounce);
+  backdrop-filter: blur(4px);
+}
+.city-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  transform: translateY(-2px);
+}
+.dropdown-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.3s;
+}
+.dropdown-arrow.rotate {
+  transform: rotate(180deg);
 }
 
-.menu-links { display: flex; gap: 20px; margin-left: 10px; }
-.menu-links a { color: var(--text-muted); font-weight: 600; font-size: 0.95rem; text-decoration: none; transition: 0.3s; }
-.menu-links a:hover, .menu-links a.router-link-active { color: var(--primary); }
+/* МЕНЮ ССЫЛКИ */
+.menu-links {
+  display: flex;
+  gap: 28px;
+}
+.menu-links a {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.95rem;
+  position: relative;
+  padding: 6px 0;
+}
+.menu-links a::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 3px;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: width 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  border-radius: 3px;
+}
+.menu-links a:hover::after,
+.menu-links a.router-link-active::after {
+  width: 100%;
+}
+.menu-links a:hover {
+  color: var(--primary);
+}
 
-.search-bar-container { flex: 1; max-width: 500px; position: relative; }
-.search-input-wrapper { display: flex; align-items: center; background: var(--bg-input); padding: 0 16px; border-radius: 30px; height: 44px; }
-.search-input-wrapper input { border: none !important; background: transparent !important; width: 100%; color: var(--text-main); outline: none; }
+/* ПОИСК */
+.search-bar-container {
+  flex: 1;
+  max-width: 500px;
+  position: relative;
+}
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 60px;
+  padding: 0 16px;
+  height: 48px;
+  transition: var(--transition);
+}
+.search-input-wrapper:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-light);
+  transform: scale(1.01);
+}
+.search-icon {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  margin-right: 12px;
+}
+.search-input-wrapper input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  outline: none;
+}
+.search-clear-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+.search-clear-btn:hover {
+  color: var(--danger);
+  transform: rotate(90deg);
+}
 
-.search-dropdown { position: absolute; top: 55px; left: 0; right: 0; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); z-index: 1100; overflow: hidden; }
-.s-label { background: var(--bg-input); padding: 6px 16px; font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
-.s-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; text-decoration: none; color: var(--text-main); }
-.s-item:hover { background: var(--primary-light); }
-.s-img { width: 44px; height: 44px; object-fit: contain; background: #fff; border-radius: 6px; border: 1px solid var(--border-color); }
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  z-index: 1100;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.s-group {
+  margin-bottom: 8px;
+}
+.s-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 800;
+  color: var(--text-muted);
+  padding: 8px 20px;
+  background: var(--bg-input);
+}
+.s-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  text-decoration: none;
+  color: var(--text-main);
+  transition: var(--transition);
+}
+.s-item:hover {
+  background: var(--primary-light);
+  transform: translateX(6px);
+}
+.s-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.s-price {
+  color: var(--success);
+  font-weight: 700;
+}
+.s-none {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
 
-.user-actions { gap: 15px; }
-.nav-icon-link { font-size: 1.2rem; text-decoration: none; color: var(--text-muted); display: flex; align-items: center; }
-.divider { width: 1px; height: 40px; background: var(--border-color); }
+/* ПРАВАЯ СЕКЦИЯ */
+.right-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
 
-.auth-links a { font-weight: 700; font-size: 0.9rem; color: var(--text-main); text-decoration: none; }
-.reg-btn { background: var(--primary); color: #fff !important; padding: 8px 18px; border-radius: 8px; }
+/* ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ (упрощённый, но в стиле) */
+.theme-switch {
+  position: relative;
+  display: inline-block;
+  width: 64px;
+  height: 32px;
+}
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+  border-radius: 34px;
+  transition: 0.4s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+}
+.slider .sun,
+.slider .moon {
+  font-size: 1rem;
+  z-index: 1;
+  transition: 0.3s;
+}
+.slider .sun {
+  opacity: 1;
+}
+.slider .moon {
+  opacity: 0.4;
+}
+.theme-switch input:checked + .slider {
+  background: linear-gradient(145deg, #62cff0, #4a9fcf);
+}
+.theme-switch input:checked + .slider .sun {
+  opacity: 0.4;
+}
+.theme-switch input:checked + .slider .moon {
+  opacity: 1;
+}
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.theme-switch input:checked + .slider::before {
+  transform: translateX(32px);
+}
 
-.profile-trigger { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-.nav-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
-.user-display-name { font-size: 0.85rem; font-weight: 700; }
+/* ИЗБРАННОЕ – УВЕЛИЧЕННОЕ СЕРДЕЧКО */
+.wishlist-link {
+  font-size: 1.9rem !important;
+  line-height: 1;
+}
+.heart-icon {
+  font-size: 1.9rem;
+  transition: transform 0.3s;
+  display: inline-block;
+}
+.wishlist-link:hover .heart-icon {
+  transform: scale(1.15);
+}
+.icon-with-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -12px;
+  background: var(--danger);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 30px;
+  border: 2px solid var(--bg-card);
+  min-width: 20px;
+  text-align: center;
+}
+body.dark-theme .badge {
+  border-color: #0f172a;
+}
+.wishlist-badge {
+  background: #ef4444;
+}
 
-.dropdown-menu { position: absolute; top: 60px; right: 0; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; box-shadow: var(--shadow-lg); min-width: 200px; }
-.dropdown-item { display: block; padding: 10px; text-decoration: none; color: var(--text-main); border-radius: 8px; border: none; background: transparent; cursor: pointer; width: 100%; text-align: left; }
-.dropdown-item:hover { background: var(--bg-input); }
+/* РАЗДЕЛИТЕЛЬ */
+.divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border-color);
+}
 
+/* АВТОРИЗАЦИЯ */
+.auth-links {
+  display: flex;
+  gap: 12px;
+}
+.auth-link {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  text-decoration: none;
+  transition: var(--transition);
+}
+.auth-link:hover {
+  color: var(--primary);
+}
+.reg-btn {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white !important;
+  padding: 6px 16px;
+  border-radius: 40px;
+  box-shadow: 0 4px 8px rgba(230, 57, 70, 0.2);
+}
+.reg-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(230, 57, 70, 0.3);
+}
 
-/* ==========================================================================
-   ОБНОВЛЕННЫЕ И КОМПАКТНЫЕ СТИЛИ КОРЗИНЫ
-   ========================================================================== */
-.card {
-    width: 270px;
-    height: 64px; /* Идеально вписывается в 85px NavBar */
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+/* ПРОФИЛЬ */
+.user-profile-container {
+  position: relative;
+}
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  transition: var(--transition);
+}
+.profile-trigger:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+.nav-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.user-display-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 8px;
+  min-width: 220px;
+  z-index: 1200;
+  animation: slideDown 0.2s ease-out;
+}
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  text-decoration: none;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  cursor: pointer;
+  width: 100%;
+  background: transparent;
+  border: none;
+  text-align: left;
+}
+.dropdown-item:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  transform: translateX(4px);
+}
+.admin-item {
+  color: var(--warning);
+  background: var(--warning-light);
+}
+.logout-item {
+  color: var(--danger);
+}
+.logout-item:hover {
+  background: var(--danger-light);
+  color: var(--danger-hover);
+}
+.dropdown-divider {
+  margin: 8px 0;
+  border: none;
+  height: 1px;
+  background: var(--border-color);
+}
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* КОРЗИНА – СТИЛЬНАЯ КАРТОЧКА */
+.cart-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: var(--transition-bounce);
+  backdrop-filter: blur(4px);
+}
+.cart-card:hover {
+  border-color: var(--success);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 20px rgba(42, 157, 143, 0.2);
+}
+.cart-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cart-icon-wrapper svg {
+  color: var(--text-main);
+  transition: color 0.2s;
+}
+.cart-card:hover .cart-icon-wrapper svg {
+  color: var(--success);
+}
+.cart-badge {
+  top: -10px;
+  right: -12px;
+  background: var(--success);
+}
+.cart-info {
+  text-align: right;
+}
+.cart-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.cart-total {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.cart-arrow {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+.cart-card:hover .cart-arrow {
+  transform: translateX(4px);
+  color: var(--success);
+}
+
+/* СТЕКЛЯННЫЕ КАРТОЧКИ ДЛЯ ВЫПАДАЮЩИХ МЕНЮ */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+}
+
+/* АНИМАЦИИ */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* АДАПТИВНОСТЬ */
+@media (max-width: 1200px) {
+  .menu-links {
+    display: none;
+  }
+}
+@media (max-width: 950px) {
+  .user-display-name {
+    display: none;
+  }
+  .cart-info {
+    display: none;
+  }
+  .cart-card {
     padding: 6px 12px;
-    backdrop-filter: blur(10px);
-    z-index: 1000;
-    border: 1px solid var(--border-color);
-}
-
-body.dark-theme .card { background: rgba(30, 41, 59, 0.7); }
-
-.card-wrapper {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-}
-
-.card-icon {
-    flex-shrink: 0;
-    margin-right: 12px;
-}
-
-.card-icon .icon-cart-box {
-    background-color: #1a1a1a2f;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-main);
-}
-
-body.dark-theme .icon-cart-box { background-color: var(--primary); color: white; }
-
-.card-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-}
-
-.card-top, .card-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.card-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-main);
-}
-
-.product-name {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.product-price {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--success);
-}
-
-/* Кнопка сохранила все ваши анимации и стили, но стала компактной по высоте */
-.button {
-    position: relative;
-    transition: all 0.3s ease-in-out;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15);
-    padding: 0 12px;
-    background-color: var(--primary); 
-    border-radius: 9999px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
     gap: 6px;
-    font-weight: bold;
-    border: 2px solid #ffffff4d;
-    outline: none;
-    overflow: hidden;
-    font-size: 11px;
-    cursor: pointer;
-    height: 26px;
+  }
+  .cart-arrow {
+    display: none;
+  }
+  .wishlist-link {
+    font-size: 1.6rem !important;
+  }
+  .heart-icon {
+    font-size: 1.6rem;
+  }
 }
-
-.icon-btn { width: 14px; height: 14px; transition: all 0.3s ease-in-out; }
-.button:hover { transform: scale(1.05); border-color: #fff9; }
-.button:hover .icon-btn { transform: translate(3px); }
-.button:hover::before { animation: shine 1.5s ease-out infinite; }
-.button::before {
-    content: ""; position: absolute; width: 100px; height: 100%;
-    background-image: linear-gradient(120deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 70%);
-    top: 0; left: -100px; opacity: 0.6;
+@media (max-width: 768px) {
+  .main-navbar {
+    height: auto;
+    padding: 12px 0;
+  }
+  .nav-container {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .search-bar-container {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+  }
+  .city-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+  .right-section {
+    gap: 12px;
+  }
+  .theme-switch {
+    width: 54px;
+    height: 28px;
+  }
+  .slider::before {
+    height: 22px;
+    width: 22px;
+  }
+  .theme-switch input:checked + .slider::before {
+    transform: translateX(26px);
+  }
 }
-
-@keyframes shine { 0% { left: -100px; } 60% { left: 100%; } to { left: 100%; } }
-
-/* ==========================================================================
-   СТИЛИ ТЕМО-ПЕРЕКЛЮЧАТЕЛЯ
-   ========================================================================== */
-.switch { position: relative; display: inline-block; width: 90px; height: 40px; border: 1px solid rgb(58, 58, 58); border-radius: 22px; flex-shrink: 0; cursor: pointer; }
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: black; border-radius: 20px; transition: 0.4s; overflow: hidden; z-index: 2; }
-.slider:before { position: absolute; content: ""; height: 30px; width: 30px; left: 4px; bottom: 5px; background-color: white; transition: 1s; border-radius: 50%; overflow: hidden; }
-.moons-hole { position: absolute; opacity: 1; transition: 1s; }
-.moon-hole { position: absolute; border-radius: 50%; }
-.moon-hole:nth-child(1) { background-color: rgb(85, 85, 85); height: 5px; width: 5px; top: 26px; left: 20px; }
-.moon-hole:nth-child(2) { background-color: rgb(85, 85, 85); height: 10px; width: 10px; top: 16px; left: 7px; }
-.moon-hole:nth-child(3) { background-color: rgb(85, 85, 85); height: 4px; width: 4px; top: 12px; left: 21px; }
-
-input:checked + .slider { background-color: #62cff0; }
-input:checked + .slider:before { transform: translateX(52px); background-color: orange; }
-input:checked + .slider .moons-hole { transform: translateX(52px); opacity: 0; }
-.stars { right: 6px; top: 0; bottom: 0; transition: 1s; transform: translateY(0px); position: absolute; }
-.star { position: absolute; fill: white; animation: star-twinkle 2s infinite; opacity: 1; }
-.star:nth-child(1) { top: 5px; right: 29px; width: 20px; animation-delay: 0.3s; }
-.star:nth-child(2) { top: 18px; right: 9px; width: 15px; }
-.star:nth-child(3) { top: 5px; right: 15px; width: 10px; animation-delay: 0.6s; }
-.star:nth-child(4) { top: 26px; right: 28px; width: 12px; animation-delay: 0.9s; }
-.star:nth-child(5) { top: 2px; right: 50px; width: 8px; animation-delay: 1.2s; }
-input:checked + .slider .stars { transform: translateY(-32px); opacity: 0; }
-@keyframes star-twinkle { 0% { transform: scale(1); } 40% { transform: scale(1.2); } 80% { transform: scale(0.8); } 100% { transform: scale(1); } }
-.clouds { position: absolute; left: 6px; top: 0; bottom: 0; width: 20px; transition: 1s; transform: translateX(-55px); }
-.black-clouds { position: absolute; left: 6px; top: 0; bottom: 0; width: 20px; transition: 1s; transform: translateX(-55px); opacity: 0; z-index: 0; }
-.black-cloud { position: absolute; width: 20px; height: 20px; background-color: #555; opacity: 60%; border-radius: 50%; animation: cloud-move 6s infinite; }
-input:checked + .slider .clouds, input:checked + .slider .black-clouds { transform: translateX(32px); opacity: 1; }
-.cloud { position: absolute; width: 20px; height: 20px; background-color: white; border-radius: 50%; z-index: 1; animation: cloud-move 6s infinite; }
-@keyframes cloud-move { 0% { transform: translateX(-32px); } 40% { transform: translateX(-36px); } 80% { transform: translateX(-28px); } 100% { transform: translateX(-32px); } }
-
-.fade-enter-active, .fade-leave-active { transition: all 0.2s ease-out; }
-.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(10px); }
-
-@media (max-width: 1200px) { .menu-links { display: none; } }
-@media (max-width: 950px) { .user-display-name { display: none; } .card { width: 60px; padding: 6px; } .card-content { display: none; } .card-icon { margin: 0; } }
 </style>

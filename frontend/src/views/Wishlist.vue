@@ -127,6 +127,7 @@ const removeFromWishlist = async (wishlistId) => {
   try {
     await axios.delete(`/api/wishlist/${wishlistId}`);
     products.value = products.value.filter(p => p.wishlist_record_id !== wishlistId);
+    window.dispatchEvent(new Event('wishlist-updated'));
   } catch (e) {
     alert("Ошибка при удалении");
   }

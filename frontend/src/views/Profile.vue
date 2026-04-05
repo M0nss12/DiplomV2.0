@@ -9,8 +9,9 @@
           <p class="profile-welcome">Добро пожаловать, <strong>{{ user.first_name }}</strong>!</p>
         </div>
       </div>
-      <div class="profile-since-badge">
-        📅 На сайте с 01.03.2024
+      <!-- ДИНАМИЧЕСКАЯ ДАТА РЕГИСТРАЦИИ ИЗ БД -->
+      <div class="profile-since-badge" v-if="user.created_at">
+        📅 На сайте с {{ formatDate(user.created_at) }}
       </div>
     </section>
     <div v-else class="profile-loading">Загрузка данных профиля...</div>
